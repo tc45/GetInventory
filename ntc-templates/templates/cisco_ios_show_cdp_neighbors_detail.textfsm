@@ -1,0 +1,28 @@
+Value Required DESTINATION_HOST (\S+)
+Value INTERFACE_IP (.*)
+Value MANAGEMENT_IP (\d+\.\d+\.\d+\.\d+|\w+\.\w+\.\w+)
+Value PLATFORM (.*)
+Value REMOTE_PORT (.*)
+Value LOCAL_PORT (.*)
+Value SOFTWARE_VERSION (.*$)
+Value CAPABILITIES (.*)
+
+Start
+  ^Device ID: ${DESTINATION_HOST}
+  ^Entry address\(es\)\s*:\s* -> GetInterfaceIP
+  ^Management address\(es\)\s*:\s* -> GetMgmtIP
+  ^Platform\s*:\s*${PLATFORM}\s*,\s*Capabilities\s*:\s*${CAPABILITIES}
+  ^Interface: ${LOCAL_PORT},  Port ID \(outgoing port\): ${REMOTE_PORT}
+  ^Version : -> GetVersion
+  # Capture time-stamp if vty line has command time-stamping turned on
+  ^Load\s+for\s+
+  ^Time\s+source\s+is
+
+GetInterfaceIP
+  ^.*IP address: ${INTERFACE_IP} -> Start
+  
+GetMgmtIP
+  ^.*IP.+Address: ${MANAGEMENT_IP} -> Start
+
+GetVersion
+  ^${SOFTWARE_VERSION} -> Record Start

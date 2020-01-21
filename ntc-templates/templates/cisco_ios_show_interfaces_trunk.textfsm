@@ -1,0 +1,9 @@
+Value PORT (\S+(/\d+)?)
+Value VLANS (\d+([-,]\d+)+)
+
+Start
+  ^Port.*Vlans allowed on trunk -> Begin
+
+Begin
+  ^(?=\s{0,9}${PORT})\s+${VLANS} -> Record
+  ^Port.*Vlans allowed and active in management domain -> End
