@@ -22,12 +22,13 @@ wb_obj = None
 sheet_obj = None
 conn = ""
 username, password, secret, file_output = "", "", "", ""
-xls_row_username, xls_row_password, xls_row_error_current, file_name = "", "", 0, ""
-xls_col_hostname, xls_col_protocol, xls_col_port, xls_col_type, xls_col_ios, xls_col_uptime = "", "", "", "", "", ""
-xls_col_parse, xls_col_connerror, command_list, current_hostname, json_output = "", "", "", "", ""
-xls_col_output_dir, xls_col_command_output, xls_col_json_output = "", "", ""
-xls_col_username, xls_col_password, xls_col_collection_time, xls_col_model = "", "", "", ""
-xls_col_serial, xls_col_flash, xls_col_memory, xls_col_active = "", "", "", ""
+xls_main_row_username, xls_main_row_password, xls_row_error_current, file_name = "", "", 0, ""
+xls_col_main_hostname, xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_ios, \
+xls_col_main_uptime = "", "", "", "", "", ""
+xls_col_main_parse, xls_col_main_connerror, command_list, current_hostname, json_output = "", "", "", "", ""
+xls_col_main_output_dir, xls_col_main_command_output, xls_col_main_json_output = "", "", ""
+xls_col_main_username, xls_col_main_password, xls_col_main_collection_time, xls_col_main_model = "", "", "", ""
+xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active = "", "", "", ""
 xls_col_serial_if, xls_col_eth_if, xls_col_fe_if, xls_col_ge_if = "", "", "", ""
 xls_col_te_if, xls_col_tfge_if, xls_col_fge_if, xls_col_hunge_if = "", "", "", ""
 xls_col_serial_if_active, xls_col_eth_if_active, xls_col_fe_if_active, xls_col_ge_if_active = "", "", "", ""
@@ -57,14 +58,14 @@ xls_col_arp_ip, xls_col_arp_age, xls_col_arp_mac, xls_col_arp_type, xls_col_arp_
 xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type = "", "", "", ""
 xls_col_error_device, xls_col_error_time, xls_col_error_message = "", "", ""
 
-# os.environ["NET_TEXTFSM"] = str("C:\\Users\\tony\\PycharmProjects\\SecureCRT\\untitled\\ntc-templates\\templates")
+os.environ["NET_TEXTFSM"] = str("ntc-templates\\templates")
 
 
 def main():
 
-    if DEBUG is True:
-        logging.basicConfig(filename="NETMIKO_LOG.txt", level=logging.DEBUG)
-        logger = logging.getLogger("netmiko")
+    # if DEBUG is True:
+    #    logging.basicConfig(filename="NETMIKO_LOG.txt", level=logging.DEBUG)
+    #    logger = logging.getLogger("netmiko")
 
     # open XLS file
     open_xls()
@@ -149,8 +150,8 @@ def get_settings():
 
 
 def get_column_headers():
-    global xls_col_protocol, xls_col_port, xls_col_type, xls_col_hostname, xls_col_ios, xls_col_uptime, \
-        xls_col_connerror, xls_col_output_dir, xls_col_command_output, xls_col_json_output, \
+    global xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_hostname, xls_col_main_ios, xls_col_main_uptime, \
+        xls_col_main_connerror, xls_col_main_output_dir, xls_col_main_command_output, xls_col_main_json_output, \
         xls_col_routes_cidr, xls_col_routes_distance, xls_col_routes_hostname, xls_col_routes_metric, \
         xls_col_routes_nexthopif, xls_col_routes_nexthopip, xls_col_routes_protocol, xls_col_routes_route, \
         xls_col_routes_subnet, xls_col_routes_uptime, xls_col_cdp_hostname, xls_col_cdp_local_port, \
@@ -166,12 +167,12 @@ def get_column_headers():
         xls_col_te_if, xls_col_tfge_if, xls_col_fge_if, xls_col_hunge_if, xls_col_serial_if_active, \
         xls_col_eth_if_active, xls_col_fe_if_active, xls_col_ge_if_active, xls_col_te_if_active,  \
         xls_col_tfge_if_active, xls_col_fge_if_active, xls_col_hunge_if_active, xls_col_sfp_count, xls_col_cpu_one, \
-        xls_col_cpu_five, xls_col_serial, xls_col_flash, xls_col_memory, xls_col_active, xls_col_username, \
-        xls_col_password, xls_col_collection_time, xls_col_model, xls_col_mac_dest_add, xls_col_mac_type, \
+        xls_col_cpu_five, xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active, xls_col_main_username, \
+        xls_col_main_password, xls_col_main_collection_time, xls_col_main_model, xls_col_mac_dest_add, xls_col_mac_type, \
         xls_col_mac_vlan, xls_col_mac_dest_port, xls_col_log_date, xls_col_log_time, xls_col_log_timezone, \
         xls_col_log_facility, xls_col_log_severity, xls_col_log_mnemonic, xls_col_arp_ip, xls_col_arp_age, \
         xls_col_arp_mac, xls_col_arp_type, xls_col_arp_if, xls_col_log_message, xls_col_subif, xls_col_subif_active, \
-        xls_col_parse, xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type, xls_col_error_device, \
+        xls_col_main_parse, xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type, xls_col_error_device, \
         xls_col_error_message, xls_col_error_time, xls_col_tunnel_if, xls_col_tunnel_if_active, xls_col_port_chl_if, \
         xls_col_port_chl_if_active, xls_col_loop_if, xls_col_loop_if_active, xls_col_vlan_if, xls_col_vlan_if_active
 
@@ -182,45 +183,45 @@ def get_column_headers():
         cell_value = sheet_obj.cell(row=device_row_start - 1, column=i).value
         if cell_value is not None:
             if cell_value == "IP/DNS Host":
-                xls_col_hostname = i
+                xls_col_main_hostname = i
             elif left(cell_value, 12) == "Parse Method":
-                xls_col_parse = i
+                xls_col_main_parse = i
             elif cell_value == "Protocol":
-                xls_col_protocol = i
+                xls_col_main_protocol = i
             elif cell_value == "Port Override":
-                xls_col_port = i
+                xls_col_main_port = i
             elif cell_value == "Connection Error":
-                xls_col_connerror = i
+                xls_col_main_connerror = i
             elif cell_value == "Device Type":
-                xls_col_type = i
+                xls_col_main_type = i
             elif cell_value == "Hostname":
-                xls_col_hostname = i
+                xls_col_main_hostname = i
             elif cell_value == "IOS Version":
-                xls_col_ios = i
+                xls_col_main_ios = i
             elif cell_value == "Uptime":
-                xls_col_uptime = i
+                xls_col_main_uptime = i
             elif cell_value == "Output Directory":
-                xls_col_output_dir = i
+                xls_col_main_output_dir = i
             elif cell_value == "Command Output":
-                xls_col_command_output = i
+                xls_col_main_command_output = i
             elif cell_value == "JSON Output":
-                xls_col_json_output = i
+                xls_col_main_json_output = i
             elif cell_value == "Active":
-                xls_col_active = i
+                xls_col_main_active = i
             elif cell_value == "Username":
-                xls_col_username = i
+                xls_col_main_username = i
             elif cell_value == "Password":
-                xls_col_password = i
+                xls_col_main_password = i
             elif cell_value == "Collection Date/Time":
-                xls_col_collection_time = i
+                xls_col_main_collection_time = i
             elif cell_value == "Model":
-                xls_col_model = i
+                xls_col_main_model = i
             elif cell_value == "Serial Number":
-                xls_col_serial = i
+                xls_col_main_serial = i
             elif cell_value == "Memory":
-                xls_col_memory = i
+                xls_col_main_memory = i
             elif cell_value == "Flash":
-                xls_col_flash = i
+                xls_col_main_flash = i
             elif cell_value == "Serial IF":
                 xls_col_serial_if = i
             elif cell_value == "Serial IF - Active":
@@ -516,8 +517,8 @@ def get_devices():
 
 def set_protocol(device):
 
-    port = rw_cell(current_row, xls_col_port)
-    protocol = rw_cell(current_row, xls_col_protocol)
+    port = rw_cell(current_row, xls_col_main_port)
+    protocol = rw_cell(current_row, xls_col_main_protocol)
 
     if port is None:
         if DEBUG is True:
@@ -546,7 +547,7 @@ def connect_devices():
     device = {}
 
     for i in device_list:
-        conn_type = rw_cell(current_row, xls_col_parse, False, "", "Main")
+        conn_type = rw_cell(current_row, xls_col_main_parse, False, "", "Main")
         if conn_type == "autodetect":
             conn_type = guess_os(i, username, password, secret)
 
@@ -554,7 +555,7 @@ def connect_devices():
         if conn_type is None:
             conn_type = "cisco_ios"
 
-        rw_cell(current_row, xls_col_parse, True, conn_type, "Main")
+        rw_cell(current_row, xls_col_main_parse, True, conn_type, "Main")
 
         # Reset JSON and command string for each device
         json_output = ""
@@ -598,7 +599,7 @@ def connect_devices():
             if DEBUG is True:
                 print("Set terminal length to 0 for this session.")
         except Exception as e:
-            rw_cell(current_row, xls_col_connerror, True, str(e))
+            rw_cell(current_row, xls_col_main_connerror, True, str(e))
             write_error(i, str(e))
         else:
             try:
@@ -646,11 +647,11 @@ def connect_devices():
                 write_error(current_hostname, "ERROR - Writing commands to file failed: " + str(e))
 
             # Write unique device data to spreadsheet
-            rw_cell(current_row, xls_col_protocol, True, conn_protocol)
-            rw_cell(current_row, xls_col_port, True, conn_port)
-            rw_cell(current_row, xls_col_output_dir, True, file_output)
-            rw_cell(current_row, xls_col_command_output, True, commands_file)
-            rw_cell(current_row, xls_col_json_output, True, json_file)
+            rw_cell(current_row, xls_col_main_protocol, True, conn_protocol)
+            rw_cell(current_row, xls_col_main_port, True, conn_port)
+            rw_cell(current_row, xls_col_main_output_dir, True, file_output)
+            rw_cell(current_row, xls_col_main_command_output, True, commands_file)
+            rw_cell(current_row, xls_col_main_json_output, True, json_file)
 
             conn.disconnect()
 
@@ -717,26 +718,26 @@ def show_version(current_device):
         # print(json.dumps(output, indent=2))
         print(string_output)
 
-    rw_cell(current_row, xls_col_collection_time, True, get_current_time("dt"), "Main")
+    rw_cell(current_row, xls_col_main_collection_time, True, get_current_time("dt"), "Main")
 
     current_hostname = output[0]['hostname']
-    rw_cell(current_row, xls_col_hostname, True, output[0]['hostname'])
-    rw_cell(current_row, xls_col_ios, True, output[0]['running_image'])
+    rw_cell(current_row, xls_col_main_hostname, True, output[0]['hostname'])
+    rw_cell(current_row, xls_col_main_ios, True, output[0]['running_image'])
 
     if output[0]['serial']:
         serial_len = len(output[0]['serial'])
         if serial_len > 1:
-            rw_cell(current_row, xls_col_serial, True, output[0]['serial'])
+            rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'])
         elif serial_len == 1:
-            rw_cell(current_row, xls_col_serial, True, output[0]['serial'][0])
+            rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'][0])
     if output[0]['hardware']:
         hw_len = len(output[0]['hardware'])
         if hw_len > 1:
-            rw_cell(current_row, xls_col_model, True, output[0]['hardware'])
+            rw_cell(current_row, xls_col_main_model, True, output[0]['hardware'])
         elif hw_len == 1:
-            rw_cell(current_row, xls_col_model, True, output[0]['hardware'][0])
+            rw_cell(current_row, xls_col_main_model, True, output[0]['hardware'][0])
     # rw_cell(current_row, xls_col_last_reload, True, output[0]['reload_reason'])
-    rw_cell(current_row, xls_col_uptime, True, format_uptime(output[0]['uptime']))
+    rw_cell(current_row, xls_col_main_uptime, True, format_uptime(output[0]['uptime']))
 
     if DEBUG is True:
         print("///// ENDING show version for device " + current_device + "/////")
@@ -747,10 +748,10 @@ def show_version(current_device):
     try:
         conn.send_command('show interface switchport', use_textfsm=True)
         device_type = "Switch"
-        rw_cell(current_row, xls_col_type, True, device_type)
+        rw_cell(current_row, xls_col_main_type, True, device_type)
     except Exception as e:
         device_type = "Router"
-        rw_cell(current_row, xls_col_type, True, device_type)
+        rw_cell(current_row, xls_col_main_type, True, device_type)
 
 
 def show_interfaces_old(current_device):
