@@ -57,7 +57,7 @@ xls_col_arp_ip, xls_col_arp_age, xls_col_arp_mac, xls_col_arp_type, xls_col_arp_
 xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type = "", "", "", ""
 xls_col_error_device, xls_col_error_time, xls_col_error_message = "", "", ""
 
-os.environ["NET_TEXTFSM"] = str("C:\\Users\\tony\\PycharmProjects\\SecureCRT\\untitled\\ntc-templates\\templates")
+# os.environ["NET_TEXTFSM"] = str("C:\\Users\\tony\\PycharmProjects\\SecureCRT\\untitled\\ntc-templates\\templates")
 
 
 def main():
