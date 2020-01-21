@@ -12,8 +12,8 @@ from datetime import datetime
 DEBUG = True
 
 # GLOBAL VARIABLES
-# xls_input_file = "D:\\Data\\My Documents\\Projects\\ParseIT\\ParseIT - Default.xlsx"
-xls_input_file = "D:\\Data\\My Documents\\Projects\\ParseIT\\ParseIT - LL.xlsx"
+xls_input_file = "GetInventory - Default.xlsx"
+# xls_input_file = "D:\\Data\\My Documents\\Projects\\ParseIT\\ParseIT - LL.xlsx"
 device_row_start = 0
 current_row = 0
 device_list = []
