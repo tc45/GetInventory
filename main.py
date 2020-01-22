@@ -29,14 +29,16 @@ xls_col_main_parse, xls_col_main_connerror, command_list, current_hostname, json
 xls_col_main_output_dir, xls_col_main_command_output, xls_col_main_json_output = "", "", ""
 xls_col_main_username, xls_col_main_password, xls_col_main_collection_time, xls_col_main_model = "", "", "", ""
 xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active = "", "", "", ""
-xls_col_serial_if, xls_col_eth_if, xls_col_fe_if, xls_col_ge_if = "", "", "", ""
-xls_col_te_if, xls_col_tfge_if, xls_col_fge_if, xls_col_hunge_if = "", "", "", ""
-xls_col_serial_if_active, xls_col_eth_if_active, xls_col_fe_if_active, xls_col_ge_if_active = "", "", "", ""
-xls_col_te_if_active, xls_col_tfge_if_active, xls_col_fge_if_active, xls_col_hunge_if_active = "", "", "", ""
-xls_col_subif, xls_col_subif_active, xls_col_vlan_if, xls_col_vlan_if_active = "", "", "", ""
-xls_col_tunnel_if, xls_col_tunnel_if_active, xls_col_port_chl_if, xls_col_port_chl_if_active, \
-    xls_col_loop_if, xls_col_loop_if_active = "", "", "", "", "", ""
-xls_col_sfp_count, xls_col_cpu_one, xls_col_cpu_five = "", "", ""
+xls_col_main_serial_if, xls_col_main_eth_if, xls_col_main_fe_if, xls_col_main_ge_if = "", "", "", ""
+xls_col_main_te_if, xls_col_main_tfge_if, xls_col_main_fge_if, xls_col_main_hunge_if = "", "", "", ""
+xls_col_main_serial_if_active, xls_col_main_eth_if_active, xls_col_main_fe_if_active, \
+    xls_col_main_ge_if_active = "", "", "", ""
+xls_col_main_te_if_active, xls_col_main_tfge_if_active, xls_col_main_fge_if_active, \
+    xls_col_main_hunge_if_active = "", "", "", ""
+xls_col_main_subif, xls_col_main_subif_active, xls_col_main_vlan_if, xls_col_main_vlan_if_active = "", "", "", ""
+xls_col_main_tunnel_if, xls_col_main_tunnel_if_active, xls_col_main_port_chl_if, xls_col_main_port_chl_if_active, \
+    xls_col_main_loop_if, xls_col_main_loop_if_active = "", "", "", "", "", ""
+xls_col_main_sfp_count, xls_col_main_cpu_one, xls_col_main_cpu_five = "", "", ""
 xls_col_routes_hostname, xls_col_routes_protocol, xls_col_routes_metric, xls_col_routes_route = "", "", "", ""
 xls_col_routes_subnet, xls_col_routes_cidr, xls_col_routes_nexthopip, xls_col_routes_nexthopif = "", "", "", ""
 xls_col_routes_distance, xls_col_routes_uptime = "", ""
@@ -163,18 +165,18 @@ def get_column_headers():
         xls_col_if_desc, xls_col_if_mtu, xls_col_if_duplex, xls_col_if_speed, xls_col_if_bw, xls_col_if_delay, \
         xls_col_if_encapsulation, xls_col_if_last_in, xls_col_if_last_out, xls_col_if_queue, xls_col_if_in_rate, \
         xls_col_if_out_rate, xls_col_if_in_pkts, xls_col_if_out_pkts, xls_col_if_in_err, xls_col_if_out_err, \
-        xls_col_if_short_if, xls_col_if_trunk_native, xls_col_serial_if, xls_col_eth_if, xls_col_fe_if, xls_col_ge_if, \
-        xls_col_te_if, xls_col_tfge_if, xls_col_fge_if, xls_col_hunge_if, xls_col_serial_if_active, \
-        xls_col_eth_if_active, xls_col_fe_if_active, xls_col_ge_if_active, xls_col_te_if_active,  \
-        xls_col_tfge_if_active, xls_col_fge_if_active, xls_col_hunge_if_active, xls_col_sfp_count, xls_col_cpu_one, \
-        xls_col_cpu_five, xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active, xls_col_main_username, \
+        xls_col_if_short_if, xls_col_if_trunk_native, xls_col_main_serial_if, xls_col_main_eth_if, xls_col_main_fe_if, xls_col_main_ge_if, \
+        xls_col_main_te_if, xls_col_main_tfge_if, xls_col_main_fge_if, xls_col_main_hunge_if, xls_col_main_serial_if_active, \
+        xls_col_main_eth_if_active, xls_col_main_fe_if_active, xls_col_main_ge_if_active, xls_col_main_te_if_active,  \
+        xls_col_main_tfge_if_active, xls_col_main_fge_if_active, xls_col_main_hunge_if_active, xls_col_main_sfp_count, xls_col_main_cpu_one, \
+        xls_col_main_cpu_five, xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active, xls_col_main_username, \
         xls_col_main_password, xls_col_main_collection_time, xls_col_main_model, xls_col_mac_dest_add, xls_col_mac_type, \
         xls_col_mac_vlan, xls_col_mac_dest_port, xls_col_log_date, xls_col_log_time, xls_col_log_timezone, \
         xls_col_log_facility, xls_col_log_severity, xls_col_log_mnemonic, xls_col_arp_ip, xls_col_arp_age, \
-        xls_col_arp_mac, xls_col_arp_type, xls_col_arp_if, xls_col_log_message, xls_col_subif, xls_col_subif_active, \
+        xls_col_arp_mac, xls_col_arp_type, xls_col_arp_if, xls_col_log_message, xls_col_main_subif, xls_col_main_subif_active, \
         xls_col_main_parse, xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type, xls_col_error_device, \
-        xls_col_error_message, xls_col_error_time, xls_col_tunnel_if, xls_col_tunnel_if_active, xls_col_port_chl_if, \
-        xls_col_port_chl_if_active, xls_col_loop_if, xls_col_loop_if_active, xls_col_vlan_if, xls_col_vlan_if_active
+        xls_col_error_message, xls_col_error_time, xls_col_main_tunnel_if, xls_col_main_tunnel_if_active, xls_col_main_port_chl_if, \
+        xls_col_main_port_chl_if_active, xls_col_main_loop_if, xls_col_main_loop_if_active, xls_col_main_vlan_if, xls_col_main_vlan_if_active
 
     sheet = wb_obj["Main"]
     max_column = sheet.max_column
@@ -223,63 +225,63 @@ def get_column_headers():
             elif cell_value == "Flash":
                 xls_col_main_flash = i
             elif cell_value == "Serial IF":
-                xls_col_serial_if = i
+                xls_col_main_serial_if = i
             elif cell_value == "Serial IF - Active":
-                xls_col_serial_if_active = i
+                xls_col_main_serial_if_active = i
             elif cell_value == "Ethernet IF":
-                xls_col_eth_if = i
+                xls_col_main_eth_if = i
             elif cell_value == "Ethernet IF - Active":
-                xls_col_eth_if_active = i
+                xls_col_main_eth_if_active = i
             elif cell_value == "FastEthernet IF":
-                xls_col_fe_if = i
+                xls_col_main_fe_if = i
             elif cell_value == "FastEthernet IF - Active":
-                xls_col_fe_if_active = i
+                xls_col_main_fe_if_active = i
             elif cell_value == "GigEth IF":
-                xls_col_ge_if = i
+                xls_col_main_ge_if = i
             elif cell_value == "GigEth IF - Active":
-                xls_col_ge_if_active = i
+                xls_col_main_ge_if_active = i
             elif cell_value == "TenGig IF":
-                xls_col_te_if = i
+                xls_col_main_te_if = i
             elif cell_value == "TenGig IF - Active":
-                xls_col_te_if_active = i
+                xls_col_main_te_if_active = i
             elif cell_value == "TwentyFiveGig IF":
-                xls_col_tfge_if = i
+                xls_col_main_tfge_if = i
             elif cell_value == "TwentyFiveGig IF - Active":
-                xls_col_tfge_if_active = i
+                xls_col_main_tfge_if_active = i
             elif cell_value == "FortyGig IF":
-                xls_col_fge_if = i
+                xls_col_main_fge_if = i
             elif cell_value == "FortyGig IF - Active":
-                xls_col_fge_if_active = i
+                xls_col_main_fge_if_active = i
             elif cell_value == "HundredGig IF":
-                xls_col_hunge_if = i
+                xls_col_main_hunge_if = i
             elif cell_value == "HundredGig IF - Active":
-                xls_col_hunge_if_active = i
+                xls_col_main_hunge_if_active = i
             elif cell_value == "Subinterfaces":
-                xls_col_subif = i
+                xls_col_main_subif = i
             elif cell_value == "Subinterfaces - Active":
-                xls_col_subif_active = i
+                xls_col_main_subif_active = i
             elif cell_value == "Tunnel IF":
-                xls_col_tunnel_if = i
+                xls_col_main_tunnel_if = i
             elif cell_value == "Tunnel IF - Active":
-                xls_col_tunnel_if_active = i
+                xls_col_main_tunnel_if_active = i
             elif cell_value == "Port-Channel IF":
-                xls_col_port_chl_if = i
+                xls_col_main_port_chl_if = i
             elif cell_value == "Port-Channel IF - Active":
-                xls_col_port_chl_if_active = i
+                xls_col_main_port_chl_if_active = i
             elif cell_value == "Loopback IF":
-                xls_col_loop_if = i
+                xls_col_main_loop_if = i
             elif cell_value == "Loopback IF - Active":
-                xls_col_loop_if_active = i
+                xls_col_main_loop_if_active = i
             elif cell_value == "VLAN IF":
-                xls_col_vlan_if = i
+                xls_col_main_vlan_if = i
             elif cell_value == "VLAN IF - Active":
-                xls_col_vlan_if_active = i
+                xls_col_main_vlan_if_active = i
             elif cell_value == "One Min CPU":
-                xls_col_cpu_one = i
+                xls_col_main_cpu_one = i
             elif cell_value == "Five Min CPU":
-                xls_col_cpu_five = i
+                xls_col_main_cpu_five = i
             elif cell_value == "SFP Count":
-                xls_col_sfp_count = i
+                xls_col_main_sfp_count = i
 
     sheet = wb_obj["Routes"]
     max_column = sheet.max_column
@@ -1177,56 +1179,56 @@ def show_interfaces(current_device, current_device_type):
     for i in interface_counts:
         if i['type'] == "Ethernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_eth_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_eth_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_eth_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_eth_if_active, True, i['active'], "Main")
         elif i['type'] == "FastEthernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_fe_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_fe_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_fe_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_fe_if_active, True, i['active'], "Main")
         elif i['type'] == "GigabitEthernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_ge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_ge_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_ge_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_ge_if_active, True, i['active'], "Main")
         elif i['type'] == "TenGigEthernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_te_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_te_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_te_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_te_if_active, True, i['active'], "Main")
         elif i['type'] == "TwentyFiveGigEthernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_tfge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_tfge_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_tfge_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_tfge_if_active, True, i['active'], "Main")
         elif i['type'] == "FortyGigEthernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_fge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_fge_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_fge_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_fge_if_active, True, i['active'], "Main")
         elif i['type'] == "HundredGigEthernet":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_hunge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_hunge_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_hunge_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_hunge_if_active, True, i['active'], "Main")
         elif i['type'] == "Serial":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_serial_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_serial_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_serial_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_serial_if_active, True, i['active'], "Main")
         elif i['type'] == "Subinterfaces":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_subif, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_subif_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_subif, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_subif_active, True, i['active'], "Main")
         elif i['type'] == "Tunnel":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_tunnel_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_tunnel_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_tunnel_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_tunnel_if_active, True, i['active'], "Main")
         elif i['type'] == "Port-channel":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_port_chl_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_port_chl_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_port_chl_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_port_chl_if_active, True, i['active'], "Main")
         elif i['type'] == "Loopback":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_loop_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_loop_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_loop_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_loop_if_active, True, i['active'], "Main")
         elif i['type'] == "VLAN":
             if i['count'] > 0:
-                rw_cell(current_row, xls_col_vlan_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_vlan_if_active, True, i['active'], "Main")
+                rw_cell(current_row, xls_col_main_vlan_if, True, i['count'], "Main")
+                rw_cell(current_row, xls_col_main_vlan_if_active, True, i['active'], "Main")
 
 
 def count_if_details(if_dictionary):
