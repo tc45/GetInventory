@@ -3,6 +3,8 @@ import openpyxl
 import os
 from netmiko import ConnectHandler
 from netmiko import SSHDetect
+from netmiko.ssh_exception import NetMikoAuthenticationException
+from netmiko.ssh_exception import NetMikoTimeoutException
 import json
 import socket
 import re
@@ -24,7 +26,7 @@ conn = ""
 username, password, secret, file_output = "", "", "", ""
 xls_main_row_username, xls_main_row_password, xls_row_error_current, file_name = "", "", 0, ""
 xls_col_main_hostname, xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_ios, \
-xls_col_main_uptime = "", "", "", "", "", ""
+    xls_col_main_uptime = "", "", "", "", "", ""
 xls_col_main_parse, xls_col_main_connerror, command_list, current_hostname, json_output = "", "", "", "", ""
 xls_col_main_output_dir, xls_col_main_command_output, xls_col_main_json_output = "", "", ""
 xls_col_main_username, xls_col_main_password, xls_col_main_collection_time, xls_col_main_model = "", "", "", ""
@@ -83,7 +85,7 @@ def main():
     get_commands()
     # Connect to device list
     connect_devices()
-    print("/n/n/nBatch job completed.")
+    print("\n\n\nBatch job completed.")
 
 # Reference sheet lookup
 # sheet_obj.cell(row=current_row, column=xls_col_connerror).value = str(e)
@@ -549,6 +551,7 @@ def connect_devices():
     device = {}
 
     for i in device_list:
+        device_vrfs = []
         conn_type = rw_cell(current_row, xls_col_main_parse, False, "", "Main")
         if conn_type == "autodetect":
             conn_type = guess_os(i, username, password, secret)
@@ -616,7 +619,12 @@ def connect_devices():
                 print("ERROR - Show interfaces failed due to error: " + str(e))
                 write_error(current_hostname, "ERROR - Show interfaces failed due to error: " + str(e))
             try:
-                show_ip_route(i)
+                device_vrfs = show_vrf(i)
+            except Exception as e:
+                print("ERROR - Show ip vrf failed due to error: " + str(e))
+                write_error(current_hostname, "ERROR - Show ip vrf failed due to error: " + str(e))
+            try:
+                show_ip_route(i, conn_type, device_vrfs)
             except Exception as e:
                 print("ERROR - Show ip route failed due to error: " + str(e))
                 write_error(current_hostname, "ERROR - Show ip route failed due to error: " + str(e))
@@ -633,7 +641,7 @@ def connect_devices():
                 write_error(current_hostname, "ERROR - Show multiple commands failed due to error: " + str(e))
             # Grab additional JSON data
             show_inventory(i)
-            show_ip_arp(i, conn_type)
+            show_ip_arp(i, conn_type, device_vrfs)
             show_mac_address_table(i, conn_type)
             show_logging(i)
             # show_proc_memory(i)
@@ -816,26 +824,39 @@ def guess_os(device, str_username, str_password, str_secret):
         return best_match
 
 
-def show_ip_arp(current_device, conn_type):
+def show_ip_arp(current_device, conn_type, vrf_list):
     global json_output
 
-    if current_device == "172.30.254.111":
-        print("Found device 172.30.254.111")
     sheet = wb_obj['ARP']
     max_row = sheet.max_row + 1
 
     if DEBUG is True:
         print("Starting show ip arp for device " + current_device)
 
-    command = "show ip arp"
-    try:
-        output = conn.send_command(command, use_textfsm=True)
-    except Exception as e:
+    for vrf in vrf_list:
+
+        vrf_string, string_output, output = "", "", ""
+        if vrf != "global":
+            vrf_string = " vrf " + vrf
+
+        if vrf == "default" and conn_type == "cisco_nxos":
+            continue
+
+        command = "show ip arp" + vrf_string
+
         if DEBUG is True:
-            print("show ip arp could not be parsed" + str(e))
-        write_error(current_hostname, "show ip arp could not be parsed" + str(e))
-    else:
-        string_output = json.dumps(output, indent=2)
+            print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
+
+        try:
+            output = conn.send_command(command, use_textfsm=True)
+        except Exception as e:
+            if DEBUG is True:
+                print(command + " could not be parsed" + str(e))
+            write_error(current_hostname, command + " could not be parsed" + str(e))
+        else:
+            string_output = json.dumps(output, indent=2)
+
+        json_output = json_output + wrap_command(command, string_output)
 
         if DEBUG is True:
             print(string_output)
@@ -844,6 +865,7 @@ def show_ip_arp(current_device, conn_type):
         if isinstance(output, list):
             for arp in output:
                 rw_cell(max_row, 1, True, current_hostname, "ARP")
+                rw_cell(max_row, xls_col_arp_vrf, True, vrf, "ARP")
                 rw_cell(max_row, xls_col_arp_ip, True, arp['address'], "ARP")
                 rw_cell(max_row, xls_col_arp_age, True, arp['age'], "ARP")
                 rw_cell(max_row, xls_col_arp_mac, True, arp['mac'], "ARP")
@@ -858,7 +880,7 @@ def show_ip_arp(current_device, conn_type):
             rw_cell(max_row, xls_col_arp_ip, True, "No ARP Data Found", "ARP")
 
         if DEBUG is True:
-            print ("///// ENDING show ip arp for device " + current_device + "/////")
+            print("///// ENDING show ip arp for device " + current_device + "/////")
 
         json_output = json_output + wrap_command(command, string_output)
 
@@ -981,14 +1003,11 @@ def show_proc_cpu(current_device):
     json_output = json_output + wrap_command(command, string_output)
 
 
-def show_ip_route(current_device):
-    global json_output, xls_col_routes_cidr, xls_col_routes_distance, xls_col_routes_hostname, xls_col_routes_metric, \
-        xls_col_routes_nexthopif, xls_col_routes_nexthopip, xls_col_routes_protocol, xls_col_routes_route, \
-        xls_col_routes_subnet, xls_col_routes_uptime
+def show_vrf(current_device):
+    global json_output
+    vrf_names = ["global"]
 
-    sheet = wb_obj['Routes']
-    max_row = sheet.max_row + 1
-    command = "show ip route"
+    command = "show vrf"
 
     if DEBUG is True:
         print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
@@ -998,33 +1017,74 @@ def show_ip_route(current_device):
 
     if DEBUG is True:
         print(string_output)
-        print ("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
+        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
 
     json_output = json_output + wrap_command(command, string_output)
 
     # Write Routing data to spreadsheet 'Route' tab
-    if is_json(output):
-        for route in output:
-            rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
-            rw_cell(max_row, xls_col_routes_protocol, True, route['protocol'], "Routes")
-            rw_cell(max_row, xls_col_routes_route, True, route['network'], "Routes")
-            rw_cell(max_row, xls_col_routes_subnet, True, route['mask'], "Routes")
-            rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "\\" + route['mask'], "Routes")
-            rw_cell(max_row, xls_col_routes_nexthopip, True, route['nexthop_ip'], "Routes")
-            rw_cell(max_row, xls_col_routes_nexthopif, True, route['nexthop_if'], "Routes")
-            rw_cell(max_row, xls_col_routes_distance, True, route['distance'], "Routes")
-            rw_cell(max_row, xls_col_routes_metric, True, route['metric'], "Routes")
-            rw_cell(max_row, xls_col_routes_uptime, True, route['uptime'], "Routes")
-            max_row = max_row + 1
-            #print("New max_row on tab Routes is " + str(max_row))
-    else:
-        default_gateway = re.search("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", output)
-        rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
-        rw_cell(max_row, xls_col_routes_protocol, True, "Layer 2 only", "Routes")
+    if isinstance(output, list):
+        for vrf in output:
+            vrf_names.append(vrf['name'])
 
-        if default_gateway != "":
-            rw_cell(max_row, xls_col_routes_nexthopip, True, default_gateway[0], "Routes")
-            print("New max_row on tab Routes is " + str(max_row))
+    print(vrf_names)
+    return vrf_names
+
+
+def show_ip_route(current_device, dev_type, vrf_list):
+    global json_output
+
+    sheet = wb_obj['Routes']
+    max_row = sheet.max_row + 1
+
+    # Write Routing data to spreadsheet 'Route' tab
+    for vrf in vrf_list:
+
+
+        vrf_string = ""
+        if vrf != "global":
+            vrf_string = " vrf " + vrf
+
+        if vrf == "default" and dev_type == "cisco_nxos":
+            continue
+
+        command = "show ip route" + vrf_string
+
+        if DEBUG is True:
+            print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
+        try:
+            output = conn.send_command(command, use_textfsm=True)
+        except:
+            continue
+        string_output = json.dumps(output, indent=2)
+        json_output = json_output + wrap_command(command, string_output)
+
+        if DEBUG is True:
+            print(string_output)
+            print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
+
+        if isinstance(output, list):
+            for route in output:
+                rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
+                rw_cell(max_row, xls_col_routes_vrf, True, vrf, "Routes")
+                rw_cell(max_row, xls_col_routes_protocol, True, route['protocol'], "Routes")
+                rw_cell(max_row, xls_col_routes_route, True, route['network'], "Routes")
+                rw_cell(max_row, xls_col_routes_subnet, True, route['mask'], "Routes")
+                rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "\\" + route['mask'], "Routes")
+                rw_cell(max_row, xls_col_routes_nexthopip, True, route['nexthop_ip'], "Routes")
+                rw_cell(max_row, xls_col_routes_nexthopif, True, route['nexthop_if'], "Routes")
+                rw_cell(max_row, xls_col_routes_distance, True, route['distance'], "Routes")
+                rw_cell(max_row, xls_col_routes_metric, True, route['metric'], "Routes")
+                rw_cell(max_row, xls_col_routes_uptime, True, route['uptime'], "Routes")
+                max_row = max_row + 1
+                #print("New max_row on tab Routes is " + str(max_row))
+        else:
+            default_gateway = re.search("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", output)
+            rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
+            rw_cell(max_row, xls_col_routes_protocol, True, "Layer 2 only", "Routes")
+
+            if default_gateway != "":
+                rw_cell(max_row, xls_col_routes_nexthopip, True, default_gateway[0], "Routes")
+                print("New max_row on tab Routes is " + str(max_row))
 
 
 def show_cdp_neighbor(current_device, current_device_type):
@@ -1072,22 +1132,6 @@ def show_cdp_neighbor(current_device, current_device_type):
 
 def show_interfaces(current_device, current_device_type):
     global json_output
-
-        # xls_col_if_hostname, xls_col_if_interface, xls_col_if_link_status, \
-        # xls_col_if_protocol_status, xls_col_if_mac_address, xls_col_if_ip_address, xls_col_if_desc, \
-        # xls_col_if_mtu, xls_col_if_duplex, xls_col_if_speed, xls_col_if_bw, xls_col_if_delay, \
-        # xls_col_if_encapsulation, xls_col_if_last_in, xls_col_if_last_out, xls_col_if_queue, \
-        # xls_col_if_in_rate, xls_col_if_out_rate, xls_col_if_in_pkts, xls_col_if_out_pkts, xls_col_if_in_err, \
-        # xls_col_if_out_err, xls_col_if_access_vlan, xls_col_if_trunk_allowed, xls_col_if_trunk_forwarding, \
-        # xls_col_if_l2_l3, xls_col_if_trunk_access, xls_col_if_short_if, xls_col_if_trunk_native,  \
-        # xls_col_serial_if, xls_col_eth_if, xls_col_fe_if, xls_col_ge_if, \
-        # xls_col_te_if, xls_col_tfge_if, xls_col_fge_if, xls_col_hunge_if, xls_col_serial_if_active, \
-        # xls_col_eth_if_active, xls_col_fe_if_active, xls_col_ge_if_active, xls_col_te_if_active, \
-        # xls_col_tfge_if_active, xls_col_fge_if_active, xls_col_hunge_if_active, xls_col_sfp_count, xls_col_cpu_one, \
-        # xls_col_cpu_five, xls_col_serial, xls_col_flash, xls_col_memory, xls_col_active, xls_col_username, \
-        # xls_col_password, xls_col_collection_time, xls_col_model, xls_col_subif, xls_col_subif_active, \
-        # xls_col_tunnel_if, xls_col_tunnel_if_active, xls_col_port_chl_if, xls_col_port_chl_if_active, \
-        # xls_col_loop_if, xls_col_loop_if_active
 
     sheet = wb_obj['Interfaces']
     max_row = sheet.max_row + 1
