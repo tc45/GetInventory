@@ -722,20 +722,6 @@ def connect_devices():
                 except Exception as e:
                     print("ERROR - Show version failed due to error: " + str(e))
                     write_error(current_hostname, "ERROR - Show version failed due to error: " + str(e))
-            try:
-                # Run all JSON related output here.
-                show_license(i, conn_type)
-            except Exception as e:
-                print("ERROR - Show license failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show license failed due to error: " + str(e))
-
-            # Only gather interface details if setting tab set to Yes.
-            if xls_settings["GATHER_INTERFACE"] == "Yes":
-                try:
-                    show_ip_bgp(i, conn_type)
-                except Exception as e:
-                    print("ERROR - Show interfaces failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show interfaces failed due to error: " + str(e))
 
             # Always gather VRF info since it is used for multiple tables.
             try:
@@ -743,6 +729,29 @@ def connect_devices():
             except Exception as e:
                 print("ERROR - Show ip vrf failed due to error: " + str(e))
                 write_error(current_hostname, "ERROR - Show ip vrf failed due to error: " + str(e))
+
+            # try:
+            #     # Run all JSON related output here.
+            #     show_license(i, conn_type)
+            # except Exception as e:
+            #     print("ERROR - Show license failed due to error: " + str(e))
+            #     write_error(current_hostname, "ERROR - Show license failed due to error: " + str(e))
+
+            # Only gather interface details if setting tab set to Yes.
+            if xls_settings["GATHER_INTERFACE"] == "Yes":
+                try:
+                    show_interfaces(i, conn_type)
+                except Exception as e:
+                    print("ERROR - Show interfaces failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show interfaces failed due to error: " + str(e))
+            # Only gather interface details if setting tab set to Yes.
+
+            if xls_settings["GATHER_BGP"] == "Yes":
+                try:
+                    show_ip_bgp(i, conn_type)
+                except Exception as e:
+                    print("ERROR - Show ip bgp failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show ip bgp failed due to error: " + str(e))
 
             # Only gather Route table info if settings set to Yes.
             if xls_settings['GATHER_ROUTE'] == "Yes":
