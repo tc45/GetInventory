@@ -20,16 +20,27 @@ from pathlib import Path
 DEBUG = True
 
 # GLOBAL VARIABLES
+
+# Required - Need input file in XLSX format.  Command line can override this default option.
 xls_input_file = "GetInventory - Default.xlsx"
 
+# Track row in Main spreadsheet that will be the starting row for the device IP/DNS names.
 device_row_start = 0
+
+# Track current row between devices
 current_row = 0
+
+# Create blank list of devices to be used later.
 device_list = []
 device_type = ""
 wb_obj = None
 sheet_obj = None
 conn = ""
+
+# Create arguments dictionary
 arguments = {}
+
+# Creat random variables that need to be used globally.
 username, password, secret, file_output = "", "", "", ""
 xls_main_row_username, xls_main_row_password, xls_row_error_current, file_name = "", "", 0, ""
 xls_col_main_hostname, xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_ios, \
@@ -508,40 +519,6 @@ def get_column_headers():
             elif cell_value == "Output Errors":
                 xls_col_if_out_err = i
 
-    # sheet = wb_obj["ARP"]
-    # max_column = sheet.max_column
-    #
-    # for i in range(1, max_column + 1):
-    #     cell_value = sheet.cell(row=2, column=i).value
-    #     if cell_value != "":
-    #         if cell_value == "IP Address":
-    #             xls_col_arp_ip = i
-    #         elif cell_value == "VRF":
-    #             xls_col_arp_vrf = i
-    #         elif cell_value == "Age":
-    #             xls_col_arp_age = i
-    #         elif cell_value == "Hardware/MAC":
-    #             xls_col_arp_mac = i
-    #         elif cell_value == "Type":
-    #             xls_col_arp_type = i
-    #         elif cell_value == "Interface":
-    #             xls_col_arp_if = i
-
-    # sheet = wb_obj["MAC Tables"]
-    # max_column = sheet.max_column
-    #
-    # for i in range(1, max_column + 1):
-    #     cell_value = sheet.cell(row=2, column=i).value
-    #     if cell_value != "":
-    #         if cell_value == "Destination Address":
-    #             xls_col_mac_dest_add = i
-    #         elif cell_value == "Type":
-    #             xls_col_mac_type = i
-    #         elif cell_value == "VLAN":
-    #             xls_col_mac_vlan = i
-    #         elif cell_value == "Destination Port":
-    #             xls_col_mac_dest_port = i
-
     sheet = wb_obj["Logging"]
     max_column = sheet.max_column
 
@@ -562,19 +539,6 @@ def get_column_headers():
                 xls_col_log_mnemonic = i
             elif cell_value == "Message":
                 xls_col_log_message = i
-
-    # sheet = wb_obj["Errors"]
-    # max_column = sheet.max_column
-    #
-    # for i in range(1, max_column + 1):
-    #     cell_value = sheet.cell(row=2, column=i).value
-    #     if cell_value != "":
-    #         if cell_value == "Hostname":
-    #             xls_col_error_device = i
-    #         elif cell_value == "Time":
-    #             xls_col_error_time = i
-    #         elif cell_value == "Error":
-    #             xls_col_error_message = i
 
 
 def get_commands():
@@ -688,19 +652,12 @@ def connect_devices():
             'username': username,
             'password': password,
             'secret': secret,
-            'port': conn_port
+            'port': conn_port,
+            'global_delay_factor': 2,
         }
 
         if DEBUG is True:
-            device = {
-                'device_type': conn_type + "_" + conn_protocol,
-                'ip': i,
-                'username': username,
-                'password': password,
-                'secret': secret,
-                'port': conn_port,
-                'verbose': True
-            }
+            device['verbose'] = True
 
         try:
             conn = ConnectHandler(**device)
@@ -911,7 +868,8 @@ def show_version(current_device):
 
     current_hostname = output[0]['hostname']
     rw_cell(current_row, xls_col_main_hostname, True, output[0]['hostname'])
-    rw_cell(current_row, xls_col_main_ios, True, output[0]['running_image'])
+    rw_cell(current_row, xls_columns['MAIN_IOS_VERSION'], True, output[0]['version'])
+    rw_cell(current_row, xls_columns['MAIN_IOS_FILENAME'], True, output[0]['running_image'])
 
     if output[0]['serial']:
         serial_len = len(output[0]['serial'])
@@ -1040,7 +998,7 @@ def show_ip_arp(current_device, conn_type, vrf_list):
                 if conn_type == "cisco_ios":
                     rw_cell(max_row, xls_columns['ARP_TYPE'], True, arp['type'], "ARP")
                 elif conn_type == "cisco_nxos":
-                    rw_cell(max_row, xls_columns['ARP_VRF'], True, "ARPA", "ARP")
+                    rw_cell(max_row, xls_columns['ARP_TYPE'], True, "ARPA", "ARP")
                 rw_cell(max_row, xls_columns['ARP_INTERFACE'], True, arp['interface'], "ARP")
                 max_row = max_row + 1
         else:
