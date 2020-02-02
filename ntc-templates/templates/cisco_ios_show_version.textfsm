@@ -4,7 +4,7 @@ Value HOSTNAME (\S+)
 Value UPTIME (.+)
 Value RELOAD_REASON (.+?)
 Value RUNNING_IMAGE (\S+)
-Value List HARDWARE (\S+\d\S+)
+Value List HARDWARE (\w+)
 Value List SERIAL (\S+)
 Value CONFIG_REGISTER (\S+)
 Value List MAC ([0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5})
@@ -15,6 +15,7 @@ Start
   ^\s*${HOSTNAME}\s+uptime\s+is\s+${UPTIME}
   ^[sS]ystem\s+image\s+file\s+is\s+"(.*?):${RUNNING_IMAGE}"
   ^(?:[lL]ast\s+reload\s+reason:|System\s+returned\s+to\s+ROM\s+by)\s+${RELOAD_REASON}\s*$$
+  ^${HARDWARE}\sUnix\s(Intel-x86)
   ^[Pp]rocessor\s+board\s+ID\s+${SERIAL}
   ^[Cc]isco\s+${HARDWARE}.+
   ^[Cc]onfiguration\s+register\s+is\s+${CONFIG_REGISTER}
