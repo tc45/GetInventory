@@ -10,12 +10,18 @@ import socket
 import re
 import logging
 from datetime import datetime
+import time
+import getopt
+import sys
+from pathlib import Path
+
+
 
 DEBUG = True
 
 # GLOBAL VARIABLES
 xls_input_file = "GetInventory - Default.xlsx"
-# xls_input_file = "D:\\Data\\My Documents\\Projects\\ParseIT\\ParseIT - LL.xlsx"
+
 device_row_start = 0
 current_row = 0
 device_list = []
@@ -23,6 +29,7 @@ device_type = ""
 wb_obj = None
 sheet_obj = None
 conn = ""
+arguments = {}
 username, password, secret, file_output = "", "", "", ""
 xls_main_row_username, xls_main_row_password, xls_row_error_current, file_name = "", "", 0, ""
 xls_col_main_hostname, xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_ios, \
@@ -61,15 +68,23 @@ xls_col_log_date, xls_col_log_time, xls_col_log_timezone, xls_col_log_facility, 
 xls_col_arp_ip, xls_col_arp_age, xls_col_arp_mac, xls_col_arp_type, xls_col_arp_if = "", "", "", "", ""
 xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type = "", "", "", ""
 xls_col_error_device, xls_col_error_time, xls_col_error_message = "", "", ""
+# Variable to track if script found a routing table for the device.
+route_tables_present = 0
+xls_settings, xls_columns = {}, {}
 
+# Set environment variable to template directory if required.
 os.environ["NET_TEXTFSM"] = str("ntc-templates\\templates")
 
 
 def main():
+    global xls_columns, xls_settings, arguments
 
     # if DEBUG is True:
     #    logging.basicConfig(filename="NETMIKO_LOG.txt", level=logging.DEBUG)
     #    logger = logging.getLogger("netmiko")
+
+    # Get Command line arguments and bring back to variable.
+    arguments = get_arguments()
 
     # open XLS file
     open_xls()
@@ -77,8 +92,13 @@ def main():
     # Must run get_devices FIRST before getting other info.  This step indexes beginning row and adds device
     #    hostname/IP addresses into a list for further use.
     get_devices()
-    # Get settings from XLS file
-    get_settings()
+    # Get main_tab settings from XLS file
+    get_main_settings_tab()
+    # Get all column data from each tab.  Assign to global variable xls_columns.
+    xls_columns = get_all_tab_settings()
+    # Grab settings from the settings tab. Grab the value in column 3
+    xls_settings = get_tab_settings("Settings", 2, start=1, row=True)
+
     # Get column headers for data on Main tab of XLS page (index column numbers)
     get_column_headers()
     # Get commands from XLS spreadsheet on commands tab
@@ -92,9 +112,9 @@ def main():
 
 
 def probe_port(device, port):
-    if isOpen(device, 22):
+    if is_socket_open(device, 22):
         return "ssh"
-    elif isOpen(device, 23):
+    elif is_socket_open(device, 23):
         return "telnet"
     else:
         return "Unknown"
@@ -102,7 +122,7 @@ def probe_port(device, port):
 
 def open_xls():
     global wb_obj, sheet_obj
-    wb_obj = openpyxl.load_workbook(xls_input_file)
+    wb_obj = openpyxl.load_workbook(xls_input_file, data_only=True)
     sheet_obj = wb_obj['Main']
 
 
@@ -113,41 +133,119 @@ def save_xls():
     wb_obj.save(file_output + file_name)
 
 
-def get_settings():
+def get_all_tab_settings():
+    settings_dict = {}
+    # Grab main columns from Main tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("Main", 0, start=device_row_start-1))
+    # Grab ARP columns from ARP tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("ARP", 0, start=1))
+    # Grab MAC columns from MAC tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("MAC", 0, start=1))
+    # Grab Inventory settings from Logging tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("Logging", 0, start=1))
+    # Grab Inventory settings from CDP tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("CDP", 0, start=1))
+    # Grab Inventory settings from LLDP tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("LLDP", 0, start=1))
+    # Grab Inventory settings from Inventory tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("Inventory", 0, start=1))
+    # Grab Inventory settings from Routes tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("Routes", 0, start=1))
+    # Grab Inventory settings from BGP tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("BGP", 0, start=1))
+    # Grab Inventory settings from OSPF tab.  Grab column number as value.
+    # settings_dict.update(get_tab_settings("OSPF", 0, start=1))
+    # Grab Inventory settings from EIGRP tab.  Grab column number as value.
+    # settings_dict.update(get_tab_settings("EIGRP", 0, start=1))
+    # Grab Inventory settings from Errors tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("Errors", 0, start=1))
+
+    return settings_dict
+
+
+def get_tab_settings(tab_name, lookup_value=0, start=1, row=False):
+
+    # lookup_value variable is used to determine if the row#/Column# or a cell value should be looked up.
+    # If no value is specified or a 0,  lookup just the column or row number.  If a value is specified,
+    # That indicates the steps over to look in the spreadsheet for the value.
+
+    # Create dictionary that will be returned with function
+    settings_dict = {}
+
+    # Set sheet to value passed to function
+    sheet_obj = wb_obj[tab_name]
+
+    # Determine max rows and max columns for sheet
+    num_rows = sheet_obj.max_row
+    num_columns = sheet_obj.max_column
+
+    if row is False:
+        for i in range(1, num_columns + 1):
+            cell_value = rw_cell(start, i, False, sheet=tab_name).upper()
+            cell_value = cell_value.replace(" - ", "_")
+            cell_value = cell_value.replace(" ", "_")
+            cell_value = cell_value.replace("/", "_")
+            cell_value = cell_value.replace("-", "_")
+            cell_value = tab_name.upper() + "_" + cell_value
+
+            if cell_value is not None:
+                if lookup_value != 0:
+                    settings_dict[cell_value] = rw_cell(start, i + lookup_value, False, sheet=tab_name)
+                else:
+                    settings_dict[cell_value] = i
+    else:
+        for i in range(1, num_rows + 1):
+            cell_value = rw_cell(i, start, False, sheet=tab_name)
+            if cell_value is not None:
+                if lookup_value != 0:
+                    settings_dict[cell_value] = rw_cell(i, start + lookup_value, False, sheet=tab_name)
+                else:
+                    settings_dict[cell_value] = i
+
+    return settings_dict
+
+
+def get_main_settings_tab():
     global username, password, secret, file_output, file_name
 
     for i in range(1, device_row_start - 1):
         cell_value = rw_cell(i, 1)
         if cell_value == "Username":
-            username = rw_cell(i, 2)
-            if DEBUG is True:
-                print("Username set to " + username)
+            if username == "":
+                username = rw_cell(i, 2)
+                if DEBUG is True:
+                    print("Username set to " + username)
         elif cell_value == "Password":
-            password = rw_cell(i, 2)
-            if DEBUG is True:
-                print("Password has been set to *******")
+            if password == "":
+                password = rw_cell(i, 2)
+                if DEBUG is True:
+                    print("Password has been set to *******")
         elif cell_value == "Secret":
-            secret = rw_cell(i, 2)
-            if DEBUG is True:
-                print("Secret has been set to ********")
+            if secret == "":
+                secret = rw_cell(i, 2)
+                if DEBUG is True:
+                    print("Secret has been set to ********")
         elif cell_value == "Output Directory":
-            file_output = rw_cell(i, 2)
-            if DEBUG is True:
-                print("File output directory set to " + file_output)
+            if file_output == "":
+                file_output = rw_cell(i, 2)
+                if DEBUG is True:
+                    print("File output directory set to " + file_output)
         elif cell_value == "Output Name":
-            file_name = rw_cell(i, 2)
-            if DEBUG is True:
-                print("File output name set to " + file_name)
+            if file_name == "":
+                file_name = rw_cell(i, 2)
+                if DEBUG is True:
+                    print("File output name set to " + file_name)
 
     if right(file_output, 1) != "\\":
         if DEBUG is True:
             print("File path didn't end in backslash.")
         file_output = file_output + "\\"
+    verify_path(file_output)
 
-    if right(file_name, 3) != "xls" or right(file_name, 4) != "xlsx":
-        if DEBUG is True:
-            print("File path didn't end in XLS.")
+    if right(file_name, 4).lower() != "xlsx":
         file_name = file_name + ".xlsx"
+        if DEBUG is True:
+            print("File path didn't end in XLSX which is required format.  Setting to XLSX.")
 
     if DEBUG is True:
         print("Output file will be stored as " + file_output + file_name)
@@ -186,9 +284,9 @@ def get_column_headers():
     for i in range(1, max_column + 1):
         cell_value = sheet_obj.cell(row=device_row_start - 1, column=i).value
         if cell_value is not None:
-            if cell_value == "IP/DNS Host":
+            if cell_value == "Host":
                 xls_col_main_hostname = i
-            elif left(cell_value, 12) == "Parse Method":
+            elif cell_value == "Parse Method":
                 xls_col_main_parse = i
             elif cell_value == "Protocol":
                 xls_col_main_protocol = i
@@ -316,7 +414,6 @@ def get_column_headers():
             elif cell_value == "Uptime":
                 xls_col_routes_uptime = i
 
-
     sheet = wb_obj["CDP"]
     max_column = sheet.max_column
 
@@ -411,39 +508,39 @@ def get_column_headers():
             elif cell_value == "Output Errors":
                 xls_col_if_out_err = i
 
-    sheet = wb_obj["ARP"]
-    max_column = sheet.max_column
+    # sheet = wb_obj["ARP"]
+    # max_column = sheet.max_column
+    #
+    # for i in range(1, max_column + 1):
+    #     cell_value = sheet.cell(row=2, column=i).value
+    #     if cell_value != "":
+    #         if cell_value == "IP Address":
+    #             xls_col_arp_ip = i
+    #         elif cell_value == "VRF":
+    #             xls_col_arp_vrf = i
+    #         elif cell_value == "Age":
+    #             xls_col_arp_age = i
+    #         elif cell_value == "Hardware/MAC":
+    #             xls_col_arp_mac = i
+    #         elif cell_value == "Type":
+    #             xls_col_arp_type = i
+    #         elif cell_value == "Interface":
+    #             xls_col_arp_if = i
 
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "IP Address":
-                xls_col_arp_ip = i
-            elif cell_value == "VRF":
-                xls_col_arp_vrf = i
-            elif cell_value == "Age":
-                xls_col_arp_age = i
-            elif cell_value == "Hardware/MAC":
-                xls_col_arp_mac = i
-            elif cell_value == "Type":
-                xls_col_arp_type = i
-            elif cell_value == "Interface":
-                xls_col_arp_if = i
-
-    sheet = wb_obj["MAC Tables"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "Destination Address":
-                xls_col_mac_dest_add = i
-            elif cell_value == "Type":
-                xls_col_mac_type = i
-            elif cell_value == "VLAN":
-                xls_col_mac_vlan = i
-            elif cell_value == "Destination Port":
-                xls_col_mac_dest_port = i
+    # sheet = wb_obj["MAC Tables"]
+    # max_column = sheet.max_column
+    #
+    # for i in range(1, max_column + 1):
+    #     cell_value = sheet.cell(row=2, column=i).value
+    #     if cell_value != "":
+    #         if cell_value == "Destination Address":
+    #             xls_col_mac_dest_add = i
+    #         elif cell_value == "Type":
+    #             xls_col_mac_type = i
+    #         elif cell_value == "VLAN":
+    #             xls_col_mac_vlan = i
+    #         elif cell_value == "Destination Port":
+    #             xls_col_mac_dest_port = i
 
     sheet = wb_obj["Logging"]
     max_column = sheet.max_column
@@ -466,18 +563,18 @@ def get_column_headers():
             elif cell_value == "Message":
                 xls_col_log_message = i
 
-    sheet = wb_obj["Errors"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "Hostname":
-                xls_col_error_device = i
-            elif cell_value == "Time":
-                xls_col_error_time = i
-            elif cell_value == "Error":
-                xls_col_error_message = i
+    # sheet = wb_obj["Errors"]
+    # max_column = sheet.max_column
+    #
+    # for i in range(1, max_column + 1):
+    #     cell_value = sheet.cell(row=2, column=i).value
+    #     if cell_value != "":
+    #         if cell_value == "Hostname":
+    #             xls_col_error_device = i
+    #         elif cell_value == "Time":
+    #             xls_col_error_time = i
+    #         elif cell_value == "Error":
+    #             xls_col_error_message = i
 
 
 def get_commands():
@@ -508,7 +605,7 @@ def get_devices():
         if device_row_start > 0:
             if cell_value is not None:
                 device_list.append(cell_value)
-        if cell_value == "IP/DNS Host":
+        if cell_value == "Host":
             device_row_start = i + 1
             current_row = device_row_start
     if DEBUG is True:
@@ -546,13 +643,23 @@ def set_protocol(device):
 
 
 def connect_devices():
-    global conn, current_row, current_hostname, json_output, file_output
+    global conn, current_row, current_hostname, json_output, file_output, route_tables_present
     json_file, commands_file, commands = "", "", ""
     device = {}
 
     for i in device_list:
+        start_time = time.time()
+
+        # Reset routing table tracker to 0 for each new device
+        route_tables_present = 0
+
+        # Create list for each device that will house the VRF info
         device_vrfs = []
+
+        # Read the parser type (if specified) from the input spreadsheet
         conn_type = rw_cell(current_row, xls_col_main_parse, False, "", "Main")
+
+        # If conn_type is set to autodetect, run OS guesser
         if conn_type == "autodetect":
             conn_type = guess_os(i, username, password, secret)
 
@@ -560,11 +667,11 @@ def connect_devices():
         if conn_type is None:
             conn_type = "cisco_ios"
 
+        # Write the learned conn_type back to the spreadsheet.
         rw_cell(current_row, xls_col_main_parse, True, conn_type, "Main")
 
         # Reset JSON and command string for each device
         json_output = ""
-        commands = ""
 
         # Check if device has protocol and ports associated.  If not assume SSH port 22.
         ports = set_protocol(i)
@@ -573,7 +680,7 @@ def connect_devices():
         conn_protocol = ports[1]
 
         print('\n' + '\n' + '\n' + "Connecting to device " + i + " on port " + str(conn_port) +
-            " using protocol " + str(conn_protocol) + "." + '\n')
+              " using protocol " + str(conn_protocol) + "." + '\n')
 
         device = {
             'device_type': conn_type + "_" + conn_protocol,
@@ -607,54 +714,111 @@ def connect_devices():
             rw_cell(current_row, xls_col_main_connerror, True, str(e))
             write_error(i, str(e))
         else:
+            # Only gather version data if settings tab set to Yes.
+            if xls_settings["GATHER_VERSION"] == "Yes":
+                try:
+                    # Run all JSON related output here.
+                    show_version(i)
+                except Exception as e:
+                    print("ERROR - Show version failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show version failed due to error: " + str(e))
             try:
                 # Run all JSON related output here.
-                show_version(i)
+                show_license(i, conn_type)
             except Exception as e:
-                print("ERROR - Show version failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show version failed due to error: " + str(e))
-            try:
-                show_interfaces(i, conn_type)
-            except Exception as e:
-                print("ERROR - Show interfaces failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show interfaces failed due to error: " + str(e))
+                print("ERROR - Show license failed due to error: " + str(e))
+                write_error(current_hostname, "ERROR - Show license failed due to error: " + str(e))
+
+            # Only gather interface details if setting tab set to Yes.
+            if xls_settings["GATHER_INTERFACE"] == "Yes":
+                try:
+                    show_ip_bgp(i, conn_type)
+                except Exception as e:
+                    print("ERROR - Show interfaces failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show interfaces failed due to error: " + str(e))
+
+            # Always gather VRF info since it is used for multiple tables.
             try:
                 device_vrfs = show_vrf(i)
             except Exception as e:
                 print("ERROR - Show ip vrf failed due to error: " + str(e))
                 write_error(current_hostname, "ERROR - Show ip vrf failed due to error: " + str(e))
-            try:
-                show_ip_route(i, conn_type, device_vrfs)
-            except Exception as e:
-                print("ERROR - Show ip route failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show ip route failed due to error: " + str(e))
-            try:
-                show_cdp_neighbor(i, conn_type)
-            except Exception as e:
-                print("ERROR - Show cdp neighbor failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show cdp neighbor failed due to error: " + str(e))
-            try:
-                # Run commands to send to text file
-                commands = show_commands(i)
-            except Exception as e:
-                print("ERROR - Show multiple commands failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show multiple commands failed due to error: " + str(e))
+
+            # Only gather Route table info if settings set to Yes.
+            if xls_settings['GATHER_ROUTE'] == "Yes":
+                try:
+                    show_ip_route(i, conn_type, device_vrfs)
+                except Exception as e:
+                    print("ERROR - Show ip route failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show ip route failed due to error: " + str(e))
+
+            # Only gather CDP table info if settings set to Yes.
+            if xls_settings['GATHER_CDP'] == "Yes":
+                try:
+                    show_cdp_neighbor(i, conn_type)
+                except Exception as e:
+                    print("ERROR - Show cdp neighbor failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show cdp neighbor failed due to error: " + str(e))
+
+            # Only gather LLDP table info if settings set to Yes.
+            if xls_settings['GATHER_LLDP'] == "Yes":
+                try:
+                    show_lldp_neighbor(i, conn_type)
+                except Exception as e:
+                    print("ERROR - Show cdp neighbor failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show cdp neighbor failed due to error: " + str(e))
+
+            # Only gather Commands tab commands info if settings set to Yes.
+            if xls_settings['GATHER_COMMANDS'] == "Yes":
+                try:
+                    # Run commands to send to text file
+                    commands = show_commands(i)
+                    try:
+                        # Write commands returned from function to text file.
+                        commands_file = current_hostname + "-commands.txt"
+                        write_file(file_output + commands_file, commands, False)
+                    except Exception as e:
+                        write_error(current_hostname, "ERROR - Writing commands to file failed: " + str(e))
+                except Exception as e:
+                    print("ERROR - Show multiple commands failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show multiple commands failed due to error: " + str(e))
             # Grab additional JSON data
-            show_inventory(i)
-            show_ip_arp(i, conn_type, device_vrfs)
-            show_mac_address_table(i, conn_type)
-            show_logging(i)
+
+            # Only gather Inventory table info if settings set to Yes.
+            if xls_settings['GATHER_INVENTORY'] == "Yes":
+                try:
+                    show_inventory(current_hostname)
+                except Exception as e:
+                    print("ERROR - Show inventory command failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show inventory command failed due to error: " + str(e))
+
+            # Only gather ARP table info if settings set to Yes.
+            if xls_settings['GATHER_ARP'] == "Yes":
+                try:
+                    show_ip_arp(i, conn_type, device_vrfs)
+                except Exception as e:
+                    print("ERROR - Show arp command failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show arp command failed due to error: " + str(e))
+
+            # Only gather MAC table info if settings set to Yes.
+            if xls_settings['GATHER_MAC'] == "Yes":
+                try:
+                    show_mac_address_table(i, conn_type)
+                except Exception as e:
+                    print("ERROR - Show mac command failed due to error: " + str(e))
+                    write_error(current_hostname, "ERROR - Show mac command failed due to error: " + str(e))
+
+            # show_logging(i)
             # show_proc_memory(i)
-            # show_proc_cpu(i)
+            show_proc_cpu(i, conn_type)
+
             try:
-                # Write commands returned from function to text file.
-                commands_file = current_hostname + "-commands.txt"
-                write_file(file_output + commands_file, commands, False)
-                # Write JSON File for each device
-                json_file = current_hostname + "-JSON-commands.txt"
-                write_file(file_output + json_file, json_output, False)
+                if json_output != "":
+                    # Write JSON File for each device
+                    json_file = current_hostname + "-JSON-commands.txt"
+                    write_file(file_output + json_file, json_output, False)
             except Exception as e:
-                write_error(current_hostname, "ERROR - Writing commands to file failed: " + str(e))
+                write_error(current_hostname, "ERROR - Writing JSON to file failed: " + str(e))
 
             # Write unique device data to spreadsheet
             rw_cell(current_row, xls_col_main_protocol, True, conn_protocol)
@@ -665,7 +829,13 @@ def connect_devices():
 
             conn.disconnect()
 
+        # Write elapsed time for device completion to Main tab.
+        end_time = time.time()
+        time_diff = end_time - start_time
+        rw_cell(current_row, xls_columns['MAIN_ELAPSED_TIME'], True, time_diff)
+        # Increase row count by 1
         current_row = current_row + 1
+
         # Save XLS file after device completed
         save_xls()
 
@@ -764,32 +934,12 @@ def show_version(current_device):
         rw_cell(current_row, xls_col_main_type, True, device_type)
 
 
-def show_interfaces_old(current_device):
-    global json_output
-    if DEBUG is True:
-        print("Starting show interfaces for device " + current_device)
-
-    command = "show ip interface brief"
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-
-    if DEBUG is True:
-        for interface in output:
-            if interface['status'] == "administratively down":
-                print(f"{interface['intf']} is ADMIN DOWN!")
-
-    if DEBUG is True:
-        print ("///// ENDING show interfaces for device " + current_device + "/////")
-
-    file_data = wrap_command(command, string_output)
-    json_output = json_output + file_data
-
-
 def show_inventory(current_device):
     global json_output
+
+    sheet = wb_obj['Inventory']
+    max_row = sheet.max_row + 1
+
     if DEBUG is True:
         print("Starting show inventory for device " + current_device)
 
@@ -804,6 +954,15 @@ def show_inventory(current_device):
         print ("///// ENDING show inventory for device " + current_device + "/////")
 
     json_output = json_output + wrap_command(command, string_output)
+
+    if isinstance(output, list):
+        for inv in output:
+            rw_cell(max_row, xls_columns['INVENTORY_HOSTNAME'], True, current_device, "Inventory")
+            rw_cell(max_row, xls_columns['INVENTORY_PART_ID'], True, inv['pid'], "Inventory")
+            rw_cell(max_row, xls_columns['INVENTORY_DEVICE'], True, inv['name'], "Inventory")
+            rw_cell(max_row, xls_columns['INVENTORY_DESCRIPTION'], True, inv['descr'], "Inventory")
+            rw_cell(max_row, xls_columns['INVENTORY_SERIAL_NUMBER'], True, inv['sn'], "Inventory")
+            max_row += 1
 
 
 def guess_os(device, str_username, str_password, str_secret):
@@ -864,20 +1023,21 @@ def show_ip_arp(current_device, conn_type, vrf_list):
         # Write Routing data to spreadsheet 'ARP' tab
         if isinstance(output, list):
             for arp in output:
-                rw_cell(max_row, 1, True, current_hostname, "ARP")
-                rw_cell(max_row, xls_col_arp_vrf, True, vrf, "ARP")
-                rw_cell(max_row, xls_col_arp_ip, True, arp['address'], "ARP")
-                rw_cell(max_row, xls_col_arp_age, True, arp['age'], "ARP")
-                rw_cell(max_row, xls_col_arp_mac, True, arp['mac'], "ARP")
+                rw_cell(max_row, xls_columns['ARP_HOSTNAME'], True, current_hostname, "ARP")
+                rw_cell(max_row, xls_columns['ARP_VRF'], True, vrf, "ARP")
+                rw_cell(max_row, xls_columns['ARP_IP_ADDRESS'], True, arp['address'], "ARP")
+                rw_cell(max_row, xls_columns['ARP_AGE'], True, arp['age'], "ARP")
+                rw_cell(max_row, xls_columns['ARP_HARDWARE_MAC'], True, arp['mac'], "ARP")
                 if conn_type == "cisco_ios":
-                    rw_cell(max_row, xls_col_arp_type, True, arp['type'], "ARP")
+                    rw_cell(max_row, xls_columns['ARP_TYPE'], True, arp['type'], "ARP")
                 elif conn_type == "cisco_nxos":
-                    rw_cell(max_row, xls_col_arp_type, True, "ARPA", "ARP")
-                rw_cell(max_row, xls_col_arp_if, True, arp['interface'], "ARP")
+                    rw_cell(max_row, xls_columns['ARP_VRF'], True, "ARPA", "ARP")
+                rw_cell(max_row, xls_columns['ARP_INTERFACE'], True, arp['interface'], "ARP")
                 max_row = max_row + 1
         else:
-            rw_cell(max_row, 1, True, current_hostname, "ARP")
-            rw_cell(max_row, xls_col_arp_ip, True, "No ARP Data Found", "ARP")
+            rw_cell(max_row, xls_columns['ARP_HOSTNAME'], True, current_hostname, "ARP")
+            rw_cell(max_row, xls_columns['ARP_VRF'], True, vrf, "ARP")
+            rw_cell(max_row, xls_columns['ARP_IP_ADDRESS'], True, "No ARP Data Found", "ARP")
 
         if DEBUG is True:
             print("///// ENDING show ip arp for device " + current_device + "/////")
@@ -888,7 +1048,7 @@ def show_ip_arp(current_device, conn_type, vrf_list):
 def show_mac_address_table(current_device, current_device_type):
     global json_output
 
-    sheet = wb_obj['MAC Tables']
+    sheet = wb_obj['MAC']
     max_row = sheet.max_row + 1
 
     if DEBUG is True:
@@ -901,21 +1061,27 @@ def show_mac_address_table(current_device, current_device_type):
     if DEBUG is True:
         print(string_output)
 
-    # Write Routing data to spreadsheet 'MAC Tables' tab
+    # Write Routing data to spreadsheet 'MAC' tab
     if isinstance(output, list):
         for mac in output:
+            # TEXTFSM Parser uses different key names for IOS vs NXOS.  Set variable names per device by platform
+            # to make it easier to write rw_cell strings below.
+            destination_add = ""
+            destination_port = ""
+
             if current_device_type == "cisco_ios":
-                rw_cell(max_row, 1, True, current_hostname, "MAC Tables")
-                rw_cell(max_row, xls_col_mac_dest_add, True, str(mac['destination_address']), "MAC Tables")
-                rw_cell(max_row, xls_col_mac_type, True, mac['type'], "MAC Tables")
-                rw_cell(max_row, xls_col_mac_vlan, True, str(mac['vlan']), "MAC Tables")
-                rw_cell(max_row, xls_col_mac_dest_port, True, mac['destination_port'], "MAC Tables")
+                destination_add = str(mac['destination_address'])
+                destination_port = str(mac['destination_port'])
             elif current_device_type == "cisco_nxos":
-                rw_cell(max_row, 1, True, current_hostname, "MAC Tables")
-                rw_cell(max_row, xls_col_mac_dest_add, True, str(mac['mac']), "MAC Tables")
-                rw_cell(max_row, xls_col_mac_type, True, mac['type'], "MAC Tables")
-                rw_cell(max_row, xls_col_mac_vlan, True, str(mac['vlan']), "MAC Tables")
-                rw_cell(max_row, xls_col_mac_dest_port, True, mac['ports'], "MAC Tables")
+                destination_add = str(mac['mac'])
+                destination_port = str(mac['ports'])
+
+            rw_cell(max_row, xls_columns['MAC_HOSTNAME'], True, current_hostname, "MAC")
+            rw_cell(max_row, xls_columns['MAC_TYPE'], True, mac['type'], "MAC")
+            rw_cell(max_row, xls_columns['MAC_VLAN'], True, str(mac['vlan']), "MAC")
+            rw_cell(max_row, xls_columns['MAC_DESTINATION_ADDRESS'], True, destination_add, "MAC")
+            rw_cell(max_row, xls_columns['MAC_DESTINATION_PORT'], True, destination_port, "MAC")
+
             max_row = max_row + 1
     else:
         if DEBUG is True:
@@ -923,7 +1089,7 @@ def show_mac_address_table(current_device, current_device_type):
         write_error(current_hostname, "No MAC Address Table results found for device " + current_device + ".")
 
     if DEBUG is True:
-        print ("///// ENDING show mac address-table for device " + current_device + "/////")
+        print("///// ENDING show mac address-table for device " + current_device + "/////")
 
     json_output = json_output + wrap_command(command, string_output)
 
@@ -980,27 +1146,71 @@ def show_proc_memory(current_device):
         print(string_output)
 
     if DEBUG is True:
-        print ("///// ENDING show processes memory for device " + current_device + "/////")
+        print("///// ENDING show processes memory for device " + current_device + "/////")
 
     json_output = json_output + wrap_command(command, string_output)
 
 
-def show_proc_cpu(current_device):
-    global json_output
-    if DEBUG is True:
-        print("Starting show processes cpu for device " + current_device)
+def show_proc_cpu(current_device, device_type):
+    # Currently supported only on IOS platforms.  NXOS command for many platforms does not include the 5sec/1min/5min
+    if device_type == "cisco_ios":
+        global json_output
+        if DEBUG is True:
+            print("Starting show processes cpu for device " + current_device)
 
-    command = "show processes cpu"
+        command = "show processes cpu"
+        output = conn.send_command(command, use_textfsm=True)
+        string_output = json.dumps(output, indent=2)
+
+        if DEBUG is True:
+            print(string_output)
+
+        if DEBUG is True:
+            print ("///// ENDING show processes cpu for device " + current_device + "/////")
+
+        json_output = json_output + wrap_command(command, string_output)
+
+        if isinstance(output, list):
+            rw_cell(current_row, xls_columns['MAIN_FIVE_SECOND_CPU'], True, output[0]['cpu_1_min'], "Main")
+            rw_cell(current_row, xls_columns['MAIN_ONE_MINUTE_CPU'], True, output[0]['cpu_5_min'], "Main")
+            rw_cell(current_row, xls_columns['MAIN_FIVE_MINUTE_CPU'], True, output[0]['cpu_5_sec'], "Main")
+
+
+def show_ip_bgp(current_device, conn_type):
+    global json_output
+
+    sheet = wb_obj['BGP']
+    max_row = sheet.max_row + 1
+
+    command = "show ip bgp"
+
+    if DEBUG is True:
+        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
+
     output = conn.send_command(command, use_textfsm=True)
     string_output = json.dumps(output, indent=2)
 
     if DEBUG is True:
         print(string_output)
-
-    if DEBUG is True:
-        print ("///// ENDING show processes cpu for device " + current_device + "/////")
+        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
 
     json_output = json_output + wrap_command(command, string_output)
+
+    # Write Routing data to spreadsheet 'Route' tab
+    if isinstance(output, list):
+        for bgps in output:
+            rw_cell(max_row, xls_columns['BGP_HOSTNAME'], True, current_hostname, "BGP")
+            rw_cell(max_row, xls_columns['BGP_STATUS'], True, bgps['status'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_PATH_SELECTION'], True, bgps['path_selection'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_ROUTE_SOURCE'], True, bgps['route_source'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_NETWORK'], True, bgps['network'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_NEXT_HOP'], True, bgps['next_hop'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_METRIC'], True, bgps['metric'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_LOCAL_PREF'], True, bgps['local_pref'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_WEIGHT'], True, bgps['weight'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_AS_PATH'], True, bgps['as_path'], "BGP")
+            rw_cell(max_row, xls_columns['BGP_ORIGIN'], True, bgps['origin'], "BGP")
+            max_row += 1
 
 
 def show_vrf(current_device):
@@ -1031,14 +1241,13 @@ def show_vrf(current_device):
 
 
 def show_ip_route(current_device, dev_type, vrf_list):
-    global json_output
+    global json_output, route_tables_present
 
     sheet = wb_obj['Routes']
     max_row = sheet.max_row + 1
 
     # Write Routing data to spreadsheet 'Route' tab
     for vrf in vrf_list:
-
 
         vrf_string = ""
         if vrf != "global":
@@ -1076,15 +1285,62 @@ def show_ip_route(current_device, dev_type, vrf_list):
                 rw_cell(max_row, xls_col_routes_metric, True, route['metric'], "Routes")
                 rw_cell(max_row, xls_col_routes_uptime, True, route['uptime'], "Routes")
                 max_row = max_row + 1
-                #print("New max_row on tab Routes is " + str(max_row))
-        else:
+
+                route_tables_present = 1
+                continue
+
+        if route_tables_present == 0:
             default_gateway = re.search("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", output)
             rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
+            rw_cell(max_row, xls_col_routes_vrf, True, vrf, "Routes")
             rw_cell(max_row, xls_col_routes_protocol, True, "Layer 2 only", "Routes")
 
-            if default_gateway != "":
+            if default_gateway is not None:
                 rw_cell(max_row, xls_col_routes_nexthopip, True, default_gateway[0], "Routes")
-                print("New max_row on tab Routes is " + str(max_row))
+
+
+def show_lldp_neighbor(current_device, current_device_type):
+    global json_output
+
+    sheet = wb_obj['LLDP']
+    max_row = sheet.max_row + 1
+    command = "show lldp neighbor detail"
+
+    if DEBUG is True:
+        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
+
+    output = conn.send_command(command, use_textfsm=True)
+    simple_output = conn.send_command(command)
+    string_output = json.dumps(output, indent=2)
+
+    if DEBUG is True:
+        print(string_output)
+        print ("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
+
+    json_output = json_output + wrap_command(command, string_output)
+
+    # Write Routing data to spreadsheet 'Route' tab
+    if isinstance(output, list):
+        for lldp in output:
+            rw_cell(max_row, xls_columns['LLDP_HOSTNAME'], True, current_hostname, "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_LOCAL_PORT'], True, lldp['local_interface'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_CHASSIS_ID'], True, lldp['chassis_id'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_REMOTE_HOST'], True, lldp['neighbor'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_SOFTWARE'], True, lldp['system_description'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_REMOTE_DESCRIPTION'], True, lldp['neighbor_interface'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_CAPABILITIES'], True, lldp['capabilities'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_VLAN_ID'], True, lldp['vlan'], "LLDP")
+            rw_cell(max_row, xls_columns['LLDP_REMOTE_PORT'], True, lldp['neighbor_port_id'], "LLDP")
+            if current_device_type =="cisco_ios":
+                rw_cell(max_row, xls_columns['LLDP_MGMT_IP'], True, lldp['management_ip'], "LLDP")
+            if current_device_type == "cisco_nxos":
+                rw_cell(max_row, xls_columns['LLDP_MGMT_IP'], True, lldp['mgmt_address'], "LLDP")
+
+            max_row = max_row + 1
+    else:
+        rw_cell(max_row, xls_col_cdp_hostname, True, current_hostname, "CDP")
+        rw_cell(max_row, xls_col_cdp_local_port, True, "No CDP Data", "CDP")
+
 
 
 def show_cdp_neighbor(current_device, current_device_type):
@@ -1098,6 +1354,7 @@ def show_cdp_neighbor(current_device, current_device_type):
         print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
 
     output = conn.send_command(command, use_textfsm=True)
+    simple_output = conn.send_command(command)
     string_output = json.dumps(output, indent=2)
 
     if DEBUG is True:
@@ -1282,7 +1539,6 @@ def count_if_details(if_dictionary):
     tunnel_if, tunnel_if_active, port_channel_if, port_channel_if_active = 0, 0, 0, 0
     loopback_if, loopback_if_active , vlan_if, vlan_if_active = 0, 0, 0, 0
 
-
     for i in if_dictionary:
         split_if = i['interface'].split(".")
         if len(split_if) == 1:
@@ -1406,23 +1662,43 @@ def wrap_command(command, command_data):
 
 
 def format_uptime(uptime):
-    str_year, str_weeks, str_days, str_hours, str_minutes = 0, 0, 0, 0, 0
+    str_years, str_weeks, str_days, str_hours, str_minutes = 0, 0, 0, 0, 0
     str_input = uptime.split(",")
     for i in str_input:
         i = i.strip()
         str_split = i.split(" ")
-        if left(str_split[1], 4) == "year":
-            str_year = str_split[0]
-        if left(str_split[1], 4) == "week":
-            str_weeks = str_split[0]
+        if left(str_split[1], 3) == "yea":
+            str_years = int(str_split[0])
+        if left(str_split[1], 3) == "wee":
+            str_weeks = int(str_split[0])
         if left(str_split[1], 3) == "day":
-            str_days = str_split[0]
-        if left(str_split[1], 4) == "hour":
-            str_hours = str_split[0]
-        if left(str_split[1], 4) == "minu":
-            str_minutes = str_split[0]
+            str_days = int(str_split[0])
+        if left(str_split[1], 3) == "hou":
+            str_hours = int(str_split[0])
+        if left(str_split[1], 3) == "min":
+            str_minutes = int(str_split[0])
 
-    return (str(str_year) + "y " +
+    if str_days > 365:
+        years = str_days / 365
+        if not years.is_integer():
+            years = int(str(years).split(".")[0])
+        str_days = str_days - years * 365
+        str_years = str_years + years
+    if str_days > 7:
+        weeks = str_days / 7
+        if not weeks.is_integer():
+            weeks = int(str(weeks).split(".")[0])
+        str_days = str_days - weeks * 7
+        str_weeks = str_weeks + weeks
+    if str_weeks > 52:
+        years = str_weeks/52
+        if not years.is_integer():
+            years = years.split(".")
+            years = years[0]
+        str_weeks = str_weeks - years * 52
+        str_years = str_years + years
+
+    return (str(str_years) + "y " +
             str(str_weeks) + "w " +
             str(str_days) + "d " +
             str(str_hours) + "h " +
@@ -1435,12 +1711,11 @@ def write_error(device_name, error_msg):
 
     sheet = wb_obj["Errors"]
 
-    if xls_row_error_current == 0:
-        xls_row_error_current = sheet.max_row + 1
+    xls_row_error_current = sheet.max_row + 1
 
-    rw_cell(xls_row_error_current, xls_col_error_device, True, device_name, "Errors")
-    rw_cell(xls_row_error_current, xls_col_error_time, True, get_current_time("t"), "Errors")
-    rw_cell(xls_row_error_current, xls_col_error_message, True, error_msg, "Errors")
+    rw_cell(xls_row_error_current, xls_columns['ERRORS_HOSTNAME'], True, device_name, "Errors")
+    rw_cell(xls_row_error_current, xls_columns['ERRORS_TIME'], True, get_current_time("t"), "Errors")
+    rw_cell(xls_row_error_current, xls_columns['ERRORS_ERROR'], True, error_msg, "Errors")
 
 
 def get_current_time(str_option="dt"):
@@ -1449,11 +1724,11 @@ def get_current_time(str_option="dt"):
 
     time = now.strftime("%H:%M:%S")
     date = now.strftime("%m/%d/%Y")
-    if str_option=="dt":
+    if str_option == "dt":
         return date + ", " + time
-    elif str_option=="d":
+    elif str_option == "d":
         return date
-    elif str_option=="t":
+    elif str_option == "t":
         return time
     else:
         return "Invalid selection.  Choose d for date, t for time, or dt for date + time."
@@ -1475,7 +1750,7 @@ def get_short_if_name(interface):
         return short_name
 
 
-def isOpen(ip, port):
+def is_socket_open(ip, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((ip, int(port)))
@@ -1508,12 +1783,76 @@ def rw_cell(row, column, write=False, value="", sheet="Main"):
         sheet.cell(row=row, column=column).value = value
 
 
-def is_json(myjson):
+def is_json(json_object):
     try:
-        json.loads(json.dumps(myjson))
+        json.loads(json.dumps(json_object))
     except ValueError as e:
         return False
     return True
+
+
+def get_arguments():
+    global xls_input_file, username, password, secret, file_output, file_name
+    arguments = {}
+
+    failed_args = False
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "s:u:p:f:h:i:o:", ["ifile=","ofile"])
+    except getopt.GetoptError:
+        print("USAGE:  python main.py -i <XLS_INPUT_FILE> -o <OUTPUT_DIRECTORY>")
+        print("                       -f <XLS_OUTPUT_FILE> -u <USERNAME> -p <PASSWORD>")
+        print("                       -s <SECRET>\n\n\n")
+
+        sys.exit(2)
+        failed_args = True
+
+    if failed_args is False:
+        for opt, arg in opts:
+            if opt == "-h":
+                print("\nUSAGE:  python main.py -i <XLS_INPUT_FILE> -o <OUTPUT_DIRECTORY>")
+                print("                       -f <XLS_OUTPUT_FILE> -u <USERNAME> -p <PASSWORD>")
+                print("                       -s <SECRET>\n\n\n")
+            elif opt in ("-i", "--inputfile"):
+                arguments['input_file'] = arg
+                xls_input_file = arg
+                if DEBUG is True:
+                    print("Input file is " + arguments['input_file'])
+            elif opt in ("-o", "--outputdir"):
+                if right(arg, 1) != "\\":
+                    arg = arg + "\\"
+                arguments['output_dir'] = arg
+                file_output = arg
+                if DEBUG is True:
+                    print("Output directory is " + arguments['output_dir'])
+            elif opt in ("-f", "--filename"):
+                arguments['output_file'] = arg
+                file_name = arg
+                if DEBUG is True:
+                    print("Output filename is " + arguments['output_file'])
+            elif opt in ("-u", "--user"):
+                arguments['username'] = arg
+                username = arg
+                if DEBUG is True:
+                    print("Username is " + arguments['username'])
+            elif opt in ("-p", "--pass"):
+                arguments['password'] = arg
+                password = arg
+                if DEBUG is True:
+                    print("Password is " + arguments['password'])
+            elif opt in ("-s", "--secret"):
+                arguments['secret'] = arg
+                secret = arg
+                if DEBUG is True:
+                    print("Secret is " + arguments['secret'])
+
+        return arguments
+
+    return None
+
+
+def verify_path(output_dir):
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
 
 main()
