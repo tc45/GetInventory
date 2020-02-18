@@ -1557,22 +1557,19 @@ def get_vrf_interfaces_dict(current_device, current_device_type):
 
             for line in output:
                 if left(line, 4) != "Name":
-                    vrf_name = vrf.search(line).group(1)
-                    route_discriptor = vrf.search(line).group(2)
-                    vrf_type = vrf.search(line).group(4)
-                    vrf_if = vrf.search(line).group(5)
 
                     if left(line, 3) == "   ":
-                        output2.append({'interface': vrf_if,
+                        output = line.split()
+                        output2.append({'interface': output[0],
                                         'name': previous_name,
                                         'default_rd': default_rd,
                                         'protocols': protocols,
                                         })
                     else:
-                        previous_name = vrf_name
-                        default_rd = route_discriptor
-                        protocols = vrf_type
-                        output2.append({'interface': vrf_if,
+                        previous_name = vrf.search(line).group(1)
+                        default_rd = vrf.search(line).group(2)
+                        protocols = vrf.search(line).group(4)
+                        output2.append({'interface': vrf.search(line).group(5),
                                         'name': previous_name,
                                         'default_rd': default_rd,
                                         'protocols': protocols
