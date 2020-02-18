@@ -1588,7 +1588,7 @@ def get_trunk_details(if_name, trunk_dict, key_value, current_device_type):
         else:
             if current_device_type == "cisco_ios":
                 interface = x.split()[0]
-                value = x.split()[5]
+                value = x.split()[4]
             elif current_device_type == "cisco_nxos":
                 interface = x.split()[0]
                 value = x.split()[1]
