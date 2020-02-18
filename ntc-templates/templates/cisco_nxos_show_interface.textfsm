@@ -24,6 +24,7 @@ Start
   ^${INTERFACE}\s+is\s+${LINK_STATUS}$$
   ^admin\s+state\s+is\s+${ADMIN_STATE},
   ^\s+Hardware(:|\s+is)\s+${HARDWARE_TYPE},\s+address(:|\s+is)\s+${ADDRESS}(.*bia\s+${BIA})*
+  ^\s+Description:\s+${DESCRIPTION}\s+Internet\s+Address\s+is\s+${IP_ADDRESS}
   ^\s+Description:\s+${DESCRIPTION}
   ^\s+Internet\s+Address\s+is\s+${IP_ADDRESS}
   ^\s+${DUPLEX}, ${SPEED}(,|$$)
