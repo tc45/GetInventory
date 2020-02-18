@@ -148,6 +148,8 @@ def get_all_tab_settings():
     settings_dict = {}
     # Grab main columns from Main tab.  Grab column number as value.
     settings_dict.update(get_tab_settings("Main", 0, start=device_row_start-1))
+    # Grab Interface columns from Interface tab.  Grab column number as value.
+    settings_dict.update(get_tab_settings("Interfaces", 0, start=1))
     # Grab ARP columns from ARP tab.  Grab column number as value.
     settings_dict.update(get_tab_settings("ARP", 0, start=1))
     # Grab MAC columns from MAC tab.  Grab column number as value.
@@ -1305,8 +1307,8 @@ def show_lldp_neighbor(current_device, current_device_type):
 
             max_row = max_row + 1
     else:
-        rw_cell(max_row, xls_col_cdp_hostname, True, current_hostname, "CDP")
-        rw_cell(max_row, xls_col_cdp_local_port, True, "No CDP Data", "CDP")
+        rw_cell(max_row, xls_col_cdp_hostname, True, current_hostname, "LLDP")
+        rw_cell(max_row, xls_col_cdp_local_port, True, "No LLDP Data", "LLDP")
 
 
 
@@ -1361,20 +1363,24 @@ def show_interfaces(current_device, current_device_type):
     max_row = sheet.max_row + 1
     command = "show interface"
     command2 = "show interface status"
+    trunks = {}
+    vrf_info = get_vrf_interfaces_dict(current_device, current_device_type)
 
     if DEBUG is True:
         print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-        print("Starting gathering JSON data for '" + command2 + "' on " + current_device + ".")
 
     output = conn.send_command(command, use_textfsm=True)
     string_output = json.dumps(output, indent=2)
+
+    if DEBUG is True:
+        print(string_output)
+        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
+        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
 
     output2 = conn.send_command(command2, use_textfsm=True)
     string_output2 = json.dumps(output2, indent=2)
 
     if DEBUG is True:
-        print(string_output)
-        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
         print(string_output2)
         print("///// ENDING gathering JSON data for '" + command2 + "' on " + current_device + "./////")
 
@@ -1384,11 +1390,13 @@ def show_interfaces(current_device, current_device_type):
     switchport_data_found = False
     if isinstance(output2, list):
         switchport_data_found = True
+        # If device is a switch, get trunk info into dictionary.
+        trunks = get_trunk_dict(current_device_type)
 
     # Write Interface data to spreadsheet 'Interfaces' tab
     if isinstance(output, list):
         for i in output:
-            short_if_name = get_short_if_name(i['interface'])
+            short_if_name = get_short_if_name(i['interface'], current_device_type)
             rw_cell(max_row, xls_col_if_hostname, True, current_hostname, "Interfaces")
             rw_cell(max_row, xls_col_if_short_if, True, short_if_name, "Interfaces")
             rw_cell(max_row, xls_col_if_interface, True, i['interface'], "Interfaces")
@@ -1399,6 +1407,17 @@ def show_interfaces(current_device, current_device_type):
                 rw_cell(max_row, xls_col_if_protocol_status, True, i['admin_state'], "Interfaces")
             if i['ip_address'] != "":
                 rw_cell(max_row, xls_col_if_l2_l3, True, "Layer 3", "Interfaces")
+                rw_cell(max_row, xls_columns['INTERFACES_TRUNK_ACCESS'], True, "Routed", "Interfaces")
+                if isinstance(vrf_info, list):
+                    vrf_name = ""
+                    for vrf in vrf_info:
+                        if short_if_name.lower() == vrf['interface'].lower():
+                            vrf_name = vrf['name']
+                            rw_cell(max_row, xls_columns['INTERFACES_VRF'], True, vrf_name, "Interfaces")
+                    if vrf_name == "":
+                        rw_cell(max_row, xls_columns['INTERFACES_VRF'], True, "global", "Interfaces")
+                else:
+                    rw_cell(max_row, xls_columns['INTERFACES_VRF'], True, "global", "Interfaces")
             rw_cell(max_row, xls_col_if_mac_address, True, i['address'], "Interfaces")
             rw_cell(max_row, xls_col_if_ip_address, True, i['ip_address'], "Interfaces")
             rw_cell(max_row, xls_col_if_desc, True, i['description'], "Interfaces")
@@ -1420,24 +1439,28 @@ def show_interfaces(current_device, current_device_type):
                 rw_cell(max_row, xls_col_if_out_rate, True, i['output_rate'], "Interfaces")
             if switchport_data_found is True:
                 for x in output2:
-                    if short_if_name == x['port']:
+                    if short_if_name.lower() == x['port'].lower():
                         if x['vlan'].isnumeric():
                             rw_cell(max_row, xls_col_if_access_vlan, True, x['vlan'], "Interfaces")
                             rw_cell(max_row, xls_col_if_trunk_access, True, "Access", "Interfaces")
                             rw_cell(max_row, xls_col_if_l2_l3, True, "Layer 2", "Interfaces")
                         elif x['vlan'] == "trunk":
-                            try:
-                                trunk_info = get_trunk_info(short_if_name)
-                            except:
-                                write_error("Error getting trunk info from device" + current_hostname)
-
-                            rw_cell(max_row, xls_col_if_trunk_access, True, "Trunk", "Interfaces")
-                            rw_cell(max_row, xls_col_if_trunk_native, True, trunk_info[0], "Interfaces")
-                            rw_cell(max_row, xls_col_if_trunk_allowed, True, trunk_info[1],
-                                    "Interfaces")
-                            rw_cell(max_row, xls_col_if_trunk_forwarding, True, trunk_info[2],
-                                    "Interfaces")
                             rw_cell(max_row, xls_col_if_l2_l3, True, "Layer 2", "Interfaces")
+                            rw_cell(max_row, xls_col_if_trunk_access, True, "Trunk", "Interfaces")
+                            try:
+                                native = get_trunk_details(short_if_name, trunks, "vlans_native",
+                                                               current_device_type)
+                                allowed = get_trunk_details(short_if_name, trunks, "vlans_allowed",
+                                                               current_device_type)
+                                not_pruned = get_trunk_details(short_if_name, trunks, "vlans_not_pruned",
+                                                               current_device_type)
+
+                                # trunk_info = get_trunk_info(short_if_name, current_device_type)
+                                rw_cell(max_row, xls_col_if_trunk_native, True, native, "Interfaces")
+                                rw_cell(max_row, xls_col_if_trunk_allowed, True, allowed, "Interfaces")
+                                rw_cell(max_row, xls_col_if_trunk_forwarding, True, not_pruned, "Interfaces")
+                            except:
+                                write_error(current_hostname, "Error getting trunk info from device")
                         elif x['vlan'] == "routed":
                             rw_cell(max_row, xls_col_if_trunk_access, True, "Routed", "Interfaces")
             max_row = max_row + 1
@@ -1497,6 +1520,84 @@ def show_interfaces(current_device, current_device_type):
             if i['count'] > 0:
                 rw_cell(current_row, xls_col_main_vlan_if, True, i['count'], "Main")
                 rw_cell(current_row, xls_col_main_vlan_if_active, True, i['active'], "Main")
+
+
+def get_vrf_interfaces_dict(current_device, current_device_type):
+    # This function will parse VRF information to get interface and VRF info.
+    global json_output
+    vrfs = {}
+    command = ""
+
+    # Send different commands depending on platform
+    if current_device_type == "cisco_ios":
+        command = "show vrf"
+    elif current_device_type == "cisco_nxos":
+        command = "show vrf interface"
+
+    if DEBUG is True:
+        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
+
+    output = conn.send_command(command, use_textfsm=True)
+    string_output = json.dumps(output, indent=2)
+
+    if DEBUG is True:
+        print(string_output)
+        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
+
+    json_output = json_output + wrap_command(command, string_output)
+
+    if isinstance(output, str):
+        if output != "":
+            output = output.split("\n")
+            output2 = []
+            previous_name = ""
+            default_rd = ""
+            protocols = ""
+            vrf = re.compile(r"^\s+(\S+)\s+((\d+|\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):\d+|<not set>)\s+(\S+)\s+(\S+\d+)$")
+
+            for line in output:
+                if left(line, 4) != "Name":
+                    vrf_name = vrf.search(line).group(1)
+                    route_discriptor = vrf.search(line).group(2)
+                    vrf_type = vrf.search(line).group(4)
+                    vrf_if = vrf.search(line).group(5)
+
+                    if left(line, 3) == "   ":
+                        output2.append({'interface': vrf_if,
+                                        'name': previous_name,
+                                        'default_rd': default_rd,
+                                        'protocols': protocols,
+                                        })
+                    else:
+                        previous_name = vrf_name
+                        default_rd = route_discriptor
+                        protocols = vrf_type
+                        output2.append({'interface': vrf_if,
+                                        'name': previous_name,
+                                        'default_rd': default_rd,
+                                        'protocols': protocols
+                                        })
+            return output2
+    else:
+        return output
+
+
+def get_trunk_details(if_name, trunk_dict, key_value, current_device_type):
+    for x in trunk_dict[key_value]:
+        interface, value = "", ""
+        if key_value != "vlans_native":
+            interface = x.split()[0]
+            value = x.split()[1]
+        else:
+            if current_device_type == "cisco_ios":
+                interface = x.split()[0]
+                value = x.split()[5]
+            elif current_device_type == "cisco_nxos":
+                interface = x.split()[0]
+                value = x.split()[1]
+
+        if if_name.lower() == interface.lower():
+            return value
 
 
 def count_if_details(if_dictionary):
@@ -1580,32 +1681,174 @@ def count_if_details(if_dictionary):
     return str_return
 
 
-def get_trunk_info(if_name):
+def get_trunk_dict(current_device_type):
+
+    trunk_all_info = conn.send_command("show int trunk").split('\n')
+    vlans_native_list, vlans_allowed_list, vlans_forwarding_list = [], [], []
+    vlans_not_pruned_list, vlans_err_disabled_list = [], []
+    x = 0
+
+    if current_device_type == "cisco_ios":
+        for line in trunk_all_info:
+            if line != "":
+                if line != " ":
+                    if line != "\n":
+                        if x == 0:
+                            # Find the first reference to the word 'port' which will house native vlan data.
+                            first_word = line.split(" ")[0]
+                            if first_word.lower() == "port":
+                                x = x + 1
+                        elif x == 1:
+                            first_word = line.split(" ")[0]
+                            if first_word.lower() == "port":
+                                x = x + 1
+                            # Add lines to native_vlan_list:
+                            else:
+                                vlans_native_list.append(line)
+                        elif x == 2:
+                            first_word = line.split(" ")[0]
+                            # Increment counter when word 'Port' is found again
+                            if first_word.lower() == "port":
+                                x = x + 1
+                            # Add lines to vlan_allowed_list:
+                            else:
+                                vlans_allowed_list.append(line)
+                        elif x == 3:
+                            first_word = line.split(" ")[0]
+                            # Increment counter when word 'Port' is found again
+                            if first_word.lower() == "port":
+                                x = x + 1
+                            # Add lines to vlan_active_list:
+                            else:
+                                vlans_forwarding_list.append(line)
+                        elif x == 4:
+                            # Add lines to vlan_active_list:
+                            vlans_not_pruned_list.append(line)
+
+    if current_device_type == "cisco_nxos":
+        for line in trunk_all_info:
+            if line != "":
+                if left(line, 1) != " ":
+                    if line != "\n":
+                        if left(line, 3) != "---":
+                            if left(line, 7) != "Feature":
+                                if x == 0:
+                                    # Find the first reference to the word 'port' which will house native vlan data.
+                                    first_word = line.split(" ")[0]
+                                    if first_word.lower() == "port":
+                                        x = x + 1
+                                elif x == 1:
+                                    # Find second instance of the word 'port' (VLANS Allowed) and increment counter
+                                    first_word = line.split(" ")[0]
+                                    if first_word.lower() == "port":
+                                        x = x + 1
+                                    # Add lines to native_vlan_list:
+                                    else:
+                                        vlans_native_list.append(line)
+                                elif x == 2:
+                                    # Increment counter when word 'Port' is found again (ERR Disabled)
+                                    first_word = line.split(" ")[0]
+                                    if first_word.lower() == "port":
+                                        x = x + 1
+                                    # Add lines to vlan_err_disabled_list:
+                                    else:
+                                        vlans_allowed_list.append(line)
+                                elif x == 3:
+                                    # Increment counter when word 'Port' is found again (ERR Disabled)
+                                    first_word = line.split(" ")[0]
+                                    if first_word.lower() == "port":
+                                        x = x + 1
+                                    # Add lines to vlan_err_disabled_list:
+                                    else:
+                                        vlans_err_disabled_list.append(line)
+                                elif x == 4:
+                                    first_word = line.split(" ")[0]
+                                    # Increment counter when word 'Port' is found again (STP Forwarding)
+                                    if first_word.lower() == "port":
+                                        x = x + 1
+                                    # Add lines to vlan_active_list:
+                                    else:
+                                        vlans_forwarding_list.append(line)
+                                elif x == 5:
+                                    # Add lines to vlan_active_list:
+                                    vlans_not_pruned_list.append(line)
+
+    return {'vlans_native': vlans_native_list,
+            'vlans_allowed': vlans_allowed_list,
+            'vlans_err_disabled': vlans_err_disabled_list,
+            'vlans_forwarding': vlans_forwarding_list,
+            'vlans_not_pruned': vlans_not_pruned_list,
+            }
+
+
+
+def get_trunk_info(if_name, current_device_type):
     trunk_all_info = conn.send_command("show int trunk").split('\n')
     native_vlan, vlans_allowed, vlans_forwarding = "", "", ""
     x = 0
-    for line in trunk_all_info:
-        if x == 0:
-            if left(line, len(if_name)) == if_name:
-                number = re.compile(r"trunking\s+(\d+.*)$")
-                native_vlan = number.search(line).group(1)
-                x = x + 1
-        elif x == 1:
-            if left(line, len(if_name)) == if_name:
-                number = re.compile(r"\s+(\d.*)$")
-                vlans_allowed = number.search(line).group(1)
-                x = x + 1
-        elif x == 2:
-            if line.find("not pruned") != -1:
-                x = x + 1
-        elif x == 3:
-            if left(line, len(if_name)) == if_name:
-                if right(line, 1).isnumeric():
+
+    if current_device_type == "cisco_ios":
+        for line in trunk_all_info:
+            if x == 0:
+                if left(line, len(if_name)) == if_name:
+                    number = re.compile(r"trunking\s+(\d+.*)$")
+                    native_vlan = number.search(line).group(1)
+                    x = x + 1
+            elif x == 1:
+                if left(line, len(if_name)) == if_name:
                     number = re.compile(r"\s+(\d.*)$")
-                elif right(line, 1).isnumeric() is not True:
-                    number = re.compile(r"\s+(\w.*)$")
-                vlans_forwarding = number.search(line).group(1)
-                x = x + 1
+                    vlans_allowed = number.search(line).group(1)
+                    x = x + 1
+            elif x == 2:
+                if line.find("not pruned") != -1:
+                    x = x + 1
+            elif x == 3:
+                if left(line, len(if_name)) == if_name:
+                    if right(line, 1).isnumeric():
+                        number = re.compile(r"\s+(\d.*)$")
+                    elif right(line, 1).isnumeric() is not True:
+                        number = re.compile(r"\s+(\w.*)$")
+                    vlans_forwarding = number.search(line).group(1)
+                    x = x + 1
+
+    if current_device_type == "cisco_nxos":
+        for line in trunk_all_info:
+            # Get the first word in the line to compare against the current IF name.
+            re_if = ""
+            re_line_if = re.compile(r"^(\S+)\s*")
+            left_line = left(line, 1)
+            if left_line != " ":
+                if line != "":
+                    re_if = re_line_if.search(line).group(1)
+                    # First match should grab native VLAN info.  Increment counter to 1 when found.
+                    if x == 0:
+                        if left(line, len(re_if)) == if_name:
+                            number = re.compile(r"^\S+\s+(\d+)\s.*")
+                            native_vlan = number.search(line).group(1)
+                            x = x + 1
+
+                    # Second match finds VLANs allowed on trunk.  Increment counter to 2 when found.
+                    elif native_vlan != "":
+                        if line.find("Vlans Allowed on Trunk") != -1:
+                            x = x + 1
+                        if x == 2:
+                            if left(line, len(re_if)) == if_name:
+                                number = re.compile(r".*\s+(\d.*)$")
+                                vlans_allowed = number.search(line).group(1)
+
+                    # Next search for 'not pruned' in string to increment counter.
+                    if vlans_allowed != "":
+                        right_str = right(line, 10)
+                        if right(line, 10) == "not pruned":
+                            x = x + 1
+                        if x == 3:
+                            if left(line, len(re_if)) == if_name:
+                                if right(line, 4) == "none":
+                                    vlans_forwarding = "none"
+                                elif right(line, 1).isnumeric() is not True:
+                                    number = re.compile(r"\s+(\d.*)$")
+                                    vlans_forwarding = number.search(line).group(1)
+                                x = x + 1
 
     trunk_info = [native_vlan, vlans_allowed, vlans_forwarding]
     return trunk_info
@@ -1627,6 +1870,17 @@ def wrap_command(command, command_data):
 
     return command_output
 
+
+def wrap_json(command, command_dict):
+
+    command_output = {"command":command,
+                      "result":command_dict
+                      }
+
+    if DEBUG is True:
+        print("Wrapping command dictionary for JSON command '" + command + "'.")
+
+    return command_output
 
 def format_uptime(uptime):
     str_years, str_weeks, str_days, str_hours, str_minutes = 0, 0, 0, 0, 0
@@ -1701,20 +1955,33 @@ def get_current_time(str_option="dt"):
         return "Invalid selection.  Choose d for date, t for time, or dt for date + time."
 
 
-def get_short_if_name(interface):
+def get_short_if_name(interface, current_device_type):
 
     number = re.compile(r"(\d.*)$")
     name = re.compile("([a-zA-Z]+)")
 
     number = number.search(interface).group(1)
     name = name.search(interface).group(1)
+    short_name = ""
 
-    short_name = left(name, 2)
+    if current_device_type == "cisco_ios":
+        short_name = left(name, 2)
+
+    elif current_device_type == "cisco_nxos":
+        port = left(name, 3).lower()
+        if port == "eth":
+            short_name = left(name, 3)
+        elif port == "vla":
+            short_name = left(name, 4)
+        elif port == "mgm":
+            short_name = left(name, 4)
+        else:
+            short_name = left(name, 2)
 
     if int(left(number, 1)) >= 0 or number is None:
-        return short_name + str(number)
-    else:
-        return short_name
+        short_name = short_name + str(number)
+
+    return short_name
 
 
 def is_socket_open(ip, port):
