@@ -1,0 +1,13 @@
+Value Required INTERFACE (\S+)
+Value Required NAME (\S+)
+Value Required ID (\d+)
+Value Required SOO (\S+)
+
+Start
+  ^Interface\s+VRF-Name\s+VRF-ID\s+Site-of-Origin -> Start_record
+
+Start_record
+  ^${INTERFACE}\s+${NAME}\s+${ID}\s+${SOO} -> Record
+  ^\s+$$
+  ^$$
+  ^.* -> Error "LINE NOT FOUND"
