@@ -133,7 +133,7 @@ Chagne the following values to the requirements of your own project.
 Update the list of Hosts that need data collected from in column A starting at row 8.  Add one device IP address/hostname per line.
 
 If the device is not a Cisco IOS device, go ahead and update Parse Method to the appropriate parser.  Refer to section above on 'Device Support' 
-to see what platforms are supported.  If you know it is a Cisco NXOS device, change the dropdown to cisco_nxos.
+to see what platforms are supported.  Currently only cisco_ios and cisco_nxos are supported.
 
 
 **Starting at row 8:**
@@ -147,19 +147,26 @@ to see what platforms are supported.  If you know it is a Cisco NXOS device, cha
 
 * Autodetect - Logs into device to try and determine IOS before making selection.  Takes approx 10 sec additional per device
 
-Username - Cell B1
-Password - Cell B2
-Secret - Cell B3
-Protocol - Row D
+Once device details including at least Hostnames/IP addresses have been added to the spreadsheet, save and close the Excel file.  
+
+### Executing the script
+
+To execute the script, drop to a command prompt and navigate to the script directory.  Launch python with the command line argument 'main.py' to execute the script.  If no command line arguements are applied, the script will look in the local directory for the 'GetInventory - Default.xlsx' file to load as the source.  Command line arguments listed below can be supplied at runtime to override some of the behavior of the spreadsheet. 
+
+![Execute script - GetInventory](images/GetInventory_Steps_execute.gif)
+
+
+### Command line arguments
 
 
 
+...
+C:\Python\GetInventory>python main.py -h<br>
+USAGE:  python main.py -i <XLS_INPUT_FILE> -o <OUTPUT_DIRECTORY><br>
+                       -f <XLS_OUTPUT_FILE> -u <USERNAME> -p <PASSWORD><br>
+                       -s <SECRET><br>
+...
 
-
-
-
-
-### 
 
 
 ## Running the tests
