@@ -140,10 +140,9 @@ to see what platforms are supported.  If you know it is a Cisco NXOS device, cha
 | Variable | Column | Required | Description |
 | --- | --- | --- |  --- |
 | Host | A | Yes | Hostname/IP Address of device to connect |
-| Active | B | No | Ignores hosts set to 'No'.  Options: (Yes/No) Default: blank |
-| Parse Method | C | No | Defines OS parser to be used.  Options (cisco_ios, cisco_nxos, autodetect*) 
-Default: cisco_ios(blank) |
-|Protocol | D | No | Toggle connection protocol.  Options: Telnet, SSH  Default: SSH(blank)
+| Active | B | No | Ignores hosts set to 'No'.  <br/>Options: Yes/No <br/>Default: blank |
+| Parse Method | C | No | Defines OS parser to be used.  <br/>Options: cisco_ios, cisco_nxos, autodetect* <br/>Default: cisco_ios(blank) |
+|Protocol | D | No | Toggle connection protocol.  <br/>Options: Telnet, ssh  <br/>Default: ssh(blank)
 | Port Override | E | No | Override default ports of 22(ssh) or 23 (telnet).  0-65535  |
 
 * Autodetect - Logs into device to try and determine IOS before making selection.  Takes approx 10 sec additional per device
