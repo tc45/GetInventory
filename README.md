@@ -113,14 +113,14 @@ but if not go ahead and click on the 'Main' tab.  A sample of the beginning file
 
 ### Add General Connectivity Details
 
-The following values can be specified in the spreadsheet or added at run time to the command line.  See section below on *** Command Line 
-Options *** for additional details on how to add via command line.  Any values specified at command line will override the value 
+The following values can be specified in the spreadsheet or added at run time to the command line.  See section below on ** Command Line 
+Options ** for additional details on how to add via command line.  Any values specified at command line will override the value 
 in the spreadsheet. 
 
 Chagne the following values to the requirements of your own project.
 
 | Variable | Location | Default |
-| ---- | --- | --- | --- |
+| ---- | --- | --- |
 | Username | Cell B1 | local |
 | Password | Cell B2 | local |
 | Secret | Cell B3 | local |
@@ -135,10 +135,18 @@ Update the list of Hosts that need data collected from in column A starting at r
 If the device is not a Cisco IOS device, go ahead and update Parse Method to the appropriate parser.  Refer to section above on 'Device Support' 
 to see what platforms are supported.  If you know it is a Cisco NXOS device, change the dropdown to cisco_nxos.
 
-| Variable | Column | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| Host | A |  |  |
-| 
+
+**Starting at row 8:**
+| Variable | Column | Required | Description |
+| --- | --- | --- |  --- |
+| Host | A | Yes | Hostname/IP Address of device to connect |
+| Active | B | No | Ignores hosts set to 'No'.  Options: (Yes/No) Default: blank |
+| Parse Method | C | No | Defines OS parser to be used.  Options (cisco_ios, cisco_nxos, autodetect*) 
+Default: cisco_ios(blank) |
+|Protocol | D | No | Toggle connection protocol.  Options: Telnet, SSH  Default: SSH(blank)
+| Port Override | E | No | Override default ports of 22(ssh) or 23 (telnet).  0-65535  |
+
+* Autodetect - Logs into device to try and determine IOS before making selection.  Takes approx 10 sec additional per device
 
 Username - Cell B1
 Password - Cell B2
