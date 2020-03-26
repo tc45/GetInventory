@@ -105,11 +105,11 @@ used to get started.  At a minimum, a list of IP address/hostnames need to be ad
 Open the default spreadsheet, **GetInventory - Default.xlsx**, in the default directory.  The file should default to the Main tab, 
 but if not go ahead and click on the 'Main' tab.  A sample of the beginning file is shown below.
 
-<img src="images/GetInventory_Tab_Main_3.26.2020.jpg">
+![](images/GetInventory_Tab_Main_3.26.2020.jpg)
 
 
 
-** Note:** Any columns with a black header are currently not functioning. **
+**Note:** Any columns with a black header are currently not functioning.**
 
 ### Add General Connectivity Details
 
@@ -137,6 +137,7 @@ to see what platforms are supported.  Currently only cisco_ios and cisco_nxos ar
 
 
 **Starting at row 8:**
+
 | Variable | Column | Required | Description |
 | --- | --- | --- |  --- |
 | Host | A | Yes | Hostname/IP Address of device to connect |
@@ -149,6 +150,25 @@ to see what platforms are supported.  Currently only cisco_ios and cisco_nxos ar
 
 Once device details including at least Hostnames/IP addresses have been added to the spreadsheet, save and close the Excel file.  
 
+### Settings tab
+
+Certain built in functions can be toggled on and off depending on the requirements of the project.  Click the 'Settings' 
+tab and choose the options relevant.
+
+| Value |  Default | Notes |
+| --- | --- | --- |
+| Gather version info | Yes |
+| Gather ARP tab info | Yes |
+| Gather MAC tab info | Yes | 
+| Gather interface tab info | Yes |
+| Gather CDP tab info | Yes |
+| Gather LLDP tab info | Yes | 
+| Gather route info | Yes |
+| Gather BGP info | Yes |
+| Gather inventory | Yes |
+| Gather commands | Yes | Gather commands tab |
+| Gather logging (to CSV) | FUTURE | Output logging
+
 ### Executing the script
 
 To execute the script, drop to a command prompt and navigate to the script directory.  Launch python with the command line argument 'main.py' to execute the script.  If no command line arguements are applied, the script will look in the local directory for the 'GetInventory - Default.xlsx' file to load as the source.  Command line arguments listed below can be supplied at runtime to override some of the behavior of the spreadsheet. 
@@ -158,36 +178,67 @@ To execute the script, drop to a command prompt and navigate to the script direc
 
 ### Command line arguments
 
+All global options in the Spreadsheet can be overriden with command line options which are revelead with either a -h 
+or --help flag.  
+
+| Arguement | Flag | Description |
+| --- | --- | --- |
+| Username | -u <USERNAME> | Override global username |
+| Password | -p <PASSWORD> | Override global password |
+| Secret | -s <SECRET> | Override global secret |
+| Input file | -i <XLS_INPUT_FILE> | Override default input file |
+| Output directory | -o <OUTPUT_DIRECTORY> | Override file output directory |
+| Output file | -f <XLS_OUTPUT_FILE> | Override output file |
 
 
-...
-C:\Python\GetInventory>python main.py -h<br>
-USAGE:  python main.py -i <XLS_INPUT_FILE> -o <OUTPUT_DIRECTORY><br>
-                       -f <XLS_OUTPUT_FILE> -u <USERNAME> -p <PASSWORD><br>
-                       -s <SECRET><br>
-...
+![](images/GetInventory_CLI_Arguements.jpg)
 
-
-
-## Running the tests
-
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
+**Override input file**
 ```
-Give an example
+c:\Python\GetInventory>python main.py -i "MY_CUSTOM_XLS_INPUT.xlsx"
 ```
 
-### And coding style tests
-
-Explain what these tests test and why
-
+**Override username/password**
 ```
-Give an example
+c:\Python\GetInventory>python main.py -u "USER123" -p "ITSASECRET"
 ```
+
+**Override output file and directory**
+```
+c:\Python\GetInventory>python main.py -o "c:\my documents\Project123" -f "Site1.xlsx"
+```
+
+### Open output file
+
+The output file will be in the directory specified in either the spreadsheet or via command line.
+
+Depending on the options selected under settings check the following data tabs for output:
+
+| Tab Name | Items |
+| ---- | ---- |
+| Main | Original input, Make, Model, Interface Count, etc |
+| Inventory | Part ID, Device, Description, Serial |
+| Interfaces | IF, Description, Type, VRF, Trunk/Access, VLAN, etc |
+| Routes | VRF, Protocol, Route, Subnet, CIDR, Next Hop IP, Distance, Metric, Uptime |
+| BGP | Status, Path Selection, Route Source, Network, Next Hop, Metric, etc |
+| ARP | VRF, IP Address, Age, Hardware/MAC, Type, Interface |
+| MAC | Destination Address, Type, VLAN, Destination Port |
+| CDP | Local Port, remote Port, Remote Host, Interface IP, MGMT IP, etc |
+| LLDP | Chassis ID, Local Port, Remote Host, Remote Host, etc |
+| Errors | Any errors encountered while executing parsing commands or connectivity issues |
+
+## Future additions
+
+Below are some of the planned future enhancements.  I welcome any assistance.
+
+* Cross OS Support (JUNOS, Aruba, Palo Alto, Cisco ASA, etc)
+* OSPF table parsing
+* EIGRP Table parsing
+* Output log to CSV
+* Multithreading
+* CDP Crawling
+* Network Discovery
+* Subnet input instead of single IPs
 
 ## Deployment
 
@@ -209,9 +260,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+* **Tony Curtis** - *Initial work* - [Github-tc45](https://github.com/tc45)
 
 ## License
 
@@ -219,6 +268,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Acknowledgments
 
-* Hat tip to anyone whose code was used
+* To all the engineers that have run the tool and provided feedback to improve it.
 * Inspiration
 * etc
