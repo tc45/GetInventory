@@ -183,12 +183,12 @@ or --help flag.
 
 | Arguement | Flag | Description |
 | --- | --- | --- |
-| Username | -u <USERNAME> | Override global username |
-| Password | -p <PASSWORD> | Override global password |
-| Secret | -s <SECRET> | Override global secret |
-| Input file | -i <XLS_INPUT_FILE> | Override default input file |
-| Output directory | -o <OUTPUT_DIRECTORY> | Override file output directory |
-| Output file | -f <XLS_OUTPUT_FILE> | Override output file |
+| Username | -u \<USERNAME\> | Override global username |
+| Password | -p \<PASSWORD\> | Override global password |
+| Secret | -s \<SECRET\> | Override global secret |
+| Input file | -i \<XLS_INPUT_FILE\> | Override default input file |
+| Output directory | -o \<OUTPUT_DIRECTORY\> | Override file output directory |
+| Output file | -f \<XLS_OUTPUT_FILE\> | Override output file |
 
 
 ![](images/GetInventory_CLI_Arguements.jpg)
