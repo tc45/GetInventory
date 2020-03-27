@@ -102,7 +102,7 @@ def main():
     # Get hostnames from XLS file
     # Must run get_devices FIRST before getting other info.  This step indexes beginning row and adds device
     # Remove passwords from XLSX
-    remove_passwords()
+    #remove_passwords()
     #    hostname/IP addresses into a list for further use.
     get_devices()
     # Get main_tab settings from XLS file
@@ -137,6 +137,7 @@ def open_xls():
     global wb_obj, sheet_obj
     wb_obj = openpyxl.load_workbook(xls_input_file, data_only=True)
     sheet_obj = wb_obj['Main']
+    sheet_obj.protection.sheet = False
 
 
 def save_xls():
@@ -525,27 +526,6 @@ def get_column_headers():
                 xls_col_if_in_err = i
             elif cell_value == "Output Errors":
                 xls_col_if_out_err = i
-
-    sheet = wb_obj["Logging"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "Date":
-                xls_col_log_date = i
-            elif cell_value == "Time":
-                xls_col_log_time = i
-            elif cell_value == "Timezone":
-                xls_col_log_timezone = i
-            elif cell_value == "Facility":
-                xls_col_log_facility = i
-            elif cell_value == "Severity":
-                xls_col_log_severity = i
-            elif cell_value == "Mnemonic":
-                xls_col_log_mnemonic = i
-            elif cell_value == "Message":
-                xls_col_log_message = i
 
 
 def get_commands():
