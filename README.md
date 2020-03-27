@@ -261,13 +261,14 @@ Add additional notes about how to deploy this on a live system
 
 ## Built With
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [Netmiko](https://pynet.twb-tech.com/blog/automation/netmiko.html) - SSH/Telnet connection handler
+* [Openpyxl](https://openpyxl.readthedocs.io/en/stable/) - Excel document module
+* [ntcTemplates](https://github.com/networktocode/ntc-templates) - network to code templates (JSON parsers)
+* [textFSM](https://github.com/google/textfsm) - raw data parser to JSON (Included in Netmiko)
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
+Please reach out to Tony if you are interested in contributing to this project.  
 
 ## Versioning
 
@@ -276,13 +277,12 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 
 * **Tony Curtis** - *Initial work* - [Github-tc45](https://github.com/tc45)
+Network architect turned automation programmer
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
 
 ## Acknowledgments
 
 * To all the engineers that have run the tool and provided feedback to improve it.
-* Inspiration
-* etc
