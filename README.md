@@ -150,6 +150,19 @@ to see what platforms are supported.  Currently only cisco_ios and cisco_nxos ar
 
 Once device details including at least Hostnames/IP addresses have been added to the spreadsheet, save and close the Excel file.  
 
+
+### Commands tab
+
+All commands entered into the 'Commands' tab will be executed per device and output to an individual file in the 
+output directory specified.  Each file will be named after the hostname of the device that was entered in the Main tab.  
+The commands should be entered one per line in column A.  All other columns will be ignored.  Any command that doesn't 
+require input should be valid.  The default file has examples of typical commands, but this can be expanded to anything 
+you need.  Regular expressions, pipe | begin|include|section also work in these commands.  Note that these commands 
+are not platform specific.  If you put in a switch command, it will be run on a router, but just output with '^ Invalid 
+input detected' message.
+
+![GetInventory - Commands Tab](https://github.com/tc45/images/blob/master/GetInventory_tabs_commands.jpg)
+
 ### Settings tab
 
 Certain built in functions can be toggled on and off depending on the requirements of the project.  Click the 'Settings' 
@@ -168,6 +181,8 @@ tab and choose the options relevant.
 | Gather inventory | Yes |
 | Gather commands | Yes | Gather commands tab |
 | Gather logging (to CSV) | FUTURE | Output logging
+
+![Download GetInventory](https://github.com/tc45/images/blob/master/GetInventory_tabs_settings.jpg)
 
 ### Executing the script
 
