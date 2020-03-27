@@ -62,7 +62,7 @@ Once Python is installed, the following steps should be followed to get the appl
 1) Download the repository from **[Github](https://github.com/tc45/GetInventory)**.  Download using the ZIP file option, or 
 you can use GIT or SVN to pull the repository using the URL https://github.com/tc45/GetInventory.git.  
 
-![Download GetInventory](https://github.com/tc45/images/GetInventory_Steps_download.gif)
+![Download GetInventory](https://github.com/tc45/images/blob/master/GetInventory_Steps_download.gif)
 
 If downloading via ZIP:
 2) Copy the ZIP file to a directory of your choice
