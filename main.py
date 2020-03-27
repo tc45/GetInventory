@@ -101,6 +101,8 @@ def main():
     open_xls()
     # Get hostnames from XLS file
     # Must run get_devices FIRST before getting other info.  This step indexes beginning row and adds device
+    # Remove passwords from XLSX
+    remove_passwords()
     #    hostname/IP addresses into a list for further use.
     get_devices()
     # Get main_tab settings from XLS file
@@ -144,6 +146,11 @@ def save_xls():
     wb_obj.save(file_output + file_name)
 
 
+def remove_passwords():
+    rw_cell(2,2,True,"","Main")
+    rw_cell(2, 3, True, "", "Main")
+
+
 def get_all_tab_settings():
     settings_dict = {}
     # Grab main columns from Main tab.  Grab column number as value.
@@ -154,8 +161,6 @@ def get_all_tab_settings():
     settings_dict.update(get_tab_settings("ARP", 0, start=1))
     # Grab MAC columns from MAC tab.  Grab column number as value.
     settings_dict.update(get_tab_settings("MAC", 0, start=1))
-    # Grab Inventory settings from Logging tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("Logging", 0, start=1))
     # Grab Inventory settings from CDP tab.  Grab column number as value.
     settings_dict.update(get_tab_settings("CDP", 0, start=1))
     # Grab Inventory settings from LLDP tab.  Grab column number as value.
