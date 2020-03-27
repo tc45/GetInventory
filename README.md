@@ -62,7 +62,7 @@ Once Python is installed, the following steps should be followed to get the appl
 1) Download the repository from **[Github](https://github.com/tc45/GetInventory)**.  Download using the ZIP file option, or 
 you can use GIT or SVN to pull the repository using the URL https://github.com/tc45/GetInventory.git.  
 
-![Download GetInventory](images/GetInventory_Steps_download.gif)
+![Download GetInventory](https://github.com/tc45/images/GetInventory_Steps_download.gif)
 
 If downloading via ZIP:
 2) Copy the ZIP file to a directory of your choice
@@ -105,7 +105,7 @@ used to get started.  At a minimum, a list of IP address/hostnames need to be ad
 Open the default spreadsheet, **GetInventory - Default.xlsx**, in the default directory.  The file should default to the Main tab, 
 but if not go ahead and click on the 'Main' tab.  A sample of the beginning file is shown below.
 
-![](images/GetInventory_Tab_Main_3.26.2020.jpg)
+![](https://github.com/tc45/images/GetInventory_Tab_Main_3.26.2020.jpg)
 
 
 
@@ -173,7 +173,7 @@ tab and choose the options relevant.
 
 To execute the script, drop to a command prompt and navigate to the script directory.  Launch python with the command line argument 'main.py' to execute the script.  If no command line arguements are applied, the script will look in the local directory for the 'GetInventory - Default.xlsx' file to load as the source.  Command line arguments listed below can be supplied at runtime to override some of the behavior of the spreadsheet. 
 
-![Execute script - GetInventory](images/GetInventory_Steps_execute.gif)
+![Execute script - GetInventory](https://github.com/tc45/images/GetInventory_Steps_execute.gif)
 
 
 ### Command line arguments
@@ -191,7 +191,7 @@ or --help flag.
 | Output file | -f \<XLS_OUTPUT_FILE\> | Override output file |
 
 
-![](images/GetInventory_CLI_Arguements.jpg)
+![](https://github.com/tc45/images/GetInventory_CLI_Arguements.jpg)
 
 **Override input file**
 ```
