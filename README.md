@@ -188,7 +188,7 @@ tab and choose the options relevant.
 
 To execute the script, drop to a command prompt and navigate to the script directory.  Launch python with the command line argument 'main.py' to execute the script.  If no command line arguements are applied, the script will look in the local directory for the 'GetInventory - Default.xlsx' file to load as the source.  Command line arguments listed below can be supplied at runtime to override some of the behavior of the spreadsheet. 
 
-![Execute script - GetInventory](https://github.com/tc45/images/blob/master/GetInventory_Steps_execute.gif)
+![Execute script - GetInventory](https://github.com/tc45/images/blob/master/GetInventory_steps_execute.gif)
 
 
 ### Command line arguments
