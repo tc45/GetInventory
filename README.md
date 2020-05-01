@@ -1,7 +1,7 @@
 # GetInventory
 
 GetInventory is a network device collector script.  The purpose of this tool is to quickly and efficiently allow 
-network engineers and operators to be more efficient in gathering details from network devices.  Two primary sets out output will be 
+network engineers and operators to gather details from multiple network devices.  Two primary sets out output will be 
 produced per device.  The first is an Excel spreadsheet.  The spreadsheet serves as the input for the application, copies itself to an 
 output directory, and updates the output file with a standard set of information collected per device.  The information gathered is 
 parsed and added into tables on individual tabs within the file.  In addition to the Excel file, 
