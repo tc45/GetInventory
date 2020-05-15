@@ -260,6 +260,7 @@ def get_main_settings_tab():
             print("File path didn't end in backslash.")
         file_output = file_output + "\\"
     verify_path(file_output)
+    verify_path(file_output + "JSON\\")
 
     if right(file_name, 4).lower() != "xlsx":
         file_name = file_name + ".xlsx"
@@ -769,7 +770,7 @@ def connect_devices():
                 if json_output != "":
                     # Write JSON File for each device
                     json_file = current_hostname + "-JSON-commands.txt"
-                    write_file(file_output + json_file, json_output, False)
+                    write_file(file_output + "JSON\\" + json_file, json_output, False)
             except Exception as e:
                 write_error(current_hostname, "ERROR - Writing JSON to file failed: " + str(e))
 
@@ -1232,7 +1233,8 @@ def show_ip_route(current_device, dev_type, vrf_list):
                 rw_cell(max_row, xls_col_routes_protocol, True, route['protocol'], "Routes")
                 rw_cell(max_row, xls_col_routes_route, True, route['network'], "Routes")
                 rw_cell(max_row, xls_col_routes_subnet, True, route['mask'], "Routes")
-                rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "\\" + route['mask'], "Routes")
+                #rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "\\" + route['mask'], "Routes")
+                rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "/" + route['mask'], "Routes")
                 rw_cell(max_row, xls_col_routes_nexthopip, True, route['nexthop_ip'], "Routes")
                 rw_cell(max_row, xls_col_routes_nexthopif, True, route['nexthop_if'], "Routes")
                 rw_cell(max_row, xls_col_routes_distance, True, route['distance'], "Routes")
