@@ -862,13 +862,26 @@ def show_version(current_device):
     if output[0]['serial']:
         serial_len = len(output[0]['serial'])
         if serial_len > 1:
-            rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'])
+            str_serial = ""
+            for serial in output[0]['serial']:
+                if str_serial != "":
+                    str_serial += ", "
+                str_serial += serial
+
+            # rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'])
+            rw_cell(current_row, xls_col_main_serial, True, str_serial)
         elif serial_len == 1:
             rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'][0])
     if output[0]['hardware']:
         hw_len = len(output[0]['hardware'])
         if hw_len > 1:
-            rw_cell(current_row, xls_col_main_model, True, output[0]['hardware'])
+            if hw_len > 1:
+                str_hw = ""
+                for hw in output[0]['hardware']:
+                    if str_hw != "":
+                        str_hw += ", "
+                    str_hw += hw
+                rw_cell(current_row, xls_col_main_model, True, str_hw)
         elif hw_len == 1:
             rw_cell(current_row, xls_col_main_model, True, output[0]['hardware'][0])
     # rw_cell(current_row, xls_col_last_reload, True, output[0]['reload_reason'])
