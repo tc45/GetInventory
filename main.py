@@ -1017,7 +1017,7 @@ def get_vrf_interfaces_dict(device, conn, count):
         rtr_str = "Invalid Input"
         return rtr_str
     if isinstance(output, str):
-        net_dev.add_error_msg("Issue with 'get_vrf_interfaces_dict', seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string.")
+        device.add_error_msg("Issue with 'get_vrf_interfaces_dict', seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string.")
     return output
 
 
