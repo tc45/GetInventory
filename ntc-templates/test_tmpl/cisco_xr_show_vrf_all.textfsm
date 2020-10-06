@@ -1,0 +1,12 @@
+Value Required NAME (\S+)
+Value Required RD (.*?)
+
+Start
+  ^VRF\s+RD\s+RT\s+AFI\s+SAFI$$ -> Start_record
+  ^VRF\s+RD\s+RT\s+AFI\s+SAFI\s+$$ -> Start_record
+
+Start_record
+  ^${NAME}\s+${RD}\s+$$ -> Record
+  ^${NAME}\s+${RD} -> Record
+  ^\s+$$
+  ^$$

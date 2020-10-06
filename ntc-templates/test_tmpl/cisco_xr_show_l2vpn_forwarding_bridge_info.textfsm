@@ -1,0 +1,19 @@
+Value BRIDGE_GROUP (\w+)
+Value BRIDGE_DOMAIN (\w+)
+
+Start
+  ^\S+\s+\S+\s+\d+\s+\d+:\d+:\d+\.\d+\s+\S+\s*$$
+  ^Bridge\s+group:\s+${BRIDGE_GROUP},\s+bridge-domain:\s+${BRIDGE_DOMAIN},\s+id: -> Record
+  ^/s+Aging:
+  ^Legend:
+  ^/s+Filter^/s+MAC^/s+addresses:
+  ^/s+ACs:
+  ^/s+List^/s+of^/s+ACs:
+  ^/s+List^/s+of^/s+Access PWs:
+  ^/s+List^/s+of^/s+VFIs:
+  ^/s+List^/s+of^/s+Access^/s+VFIs:
+  # Capture time-stamp if vty line has command time-stamping turned on
+  ^Load\s+for\s+
+  ^\s+To\s+Resynchronize
+  ^\s+
+  ^. -> Error None
