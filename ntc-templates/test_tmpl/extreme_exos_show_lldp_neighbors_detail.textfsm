@@ -1,0 +1,34 @@
+Value Required NEIGHBOR (\S+)
+Value Required LOCAL_INTERFACE (\S+)
+Value NEIGHBOR_INTERFACE (.*)
+Value CHASSIS_ID (\w+?\.\w+?\.\w+?|([0-9a-fA-F]{2}\:){5}[0-9a-fA-F]{2})
+Value MGMT_ADDRESS (\d+?\.\d+?\.\d+?\.\d+?|\w+?\.\w+?\.\w+?)
+Value CAPABILITIES (.*)
+Value SERIAL_NUMBER (.*)
+Value VERSION (.*)
+Value MODEL (.*)
+#Value VLAN ([0-9]+)
+
+
+Start
+  ^LLDP\s+Port\s+${LOCAL_INTERFACE}
+  ^\s+[Cc]hassis\s[idID]{2}\s+\:\s+${CHASSIS_ID}
+  ^\s+[Pp]ort\s+[idID]{2}\s+\:\s+"${NEIGHBOR_INTERFACE}"
+  ^\s+-\s+System\s+Name(\:|\s+\:)\s+"${NEIGHBOR}"
+  ^\s+Enabled\s+Capabilities(\s+){0,1}\:\s+"${CAPABILITIES}"
+  ^\s+Management\s+Address\s+\:\s+${MGMT_ADDRESS}
+  ^\s+(-\s+){0,1}MED\s+Serial\s+Number\:\s+"${SERIAL_NUMBER}"
+  ^\s+(-\s+){0,1}MED\s+Software\s+Revision\:\s+"${VERSION}"
+  ^\s+(-\s+){0,1}MED\s+Model\s+Name\:\s+"${MODEL}"
+  ^------------------- -> Record
+
+
+  #^[Cc]hassis\s[idID]{2}\:\s${CHASSIS_ID}$$
+  #^[Pp]ort\s[idID]{2}\:\s${NEIGHBOR_PORT_ID}$$
+  #^[Ll]ocal\s[Pp]ort\s[idID]{2}\:\s${LOCAL_INTERFACE}$$
+  #^[Pp]ort\s[Dd]escription\:\s${NEIGHBOR_INTERFACE}$$
+  #^[Ss]ystem\s[Nn]ame\:\s${NEIGHBOR}$$
+  #^[Ss]ystem\s[Dd]escription\:\s${SYSTEM_DESCRIPTION}$$
+  #^[Ee]nabled\s[Cc]apabilities\:\s${CAPABILITIES}$$
+  #^[Mm]anagement\s[Aa]ddress\:\s${MGMT_ADDRESS}$$
+  #^[Vv]lan\s[idID]{2}\:\s${VLAN}$$ -> Record

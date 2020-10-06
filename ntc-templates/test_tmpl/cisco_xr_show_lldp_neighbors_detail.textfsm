@@ -1,0 +1,19 @@
+Value Required NEIGHBOR (\S+)
+Value Required LOCAL_INTERFACE (\S+)
+Value Required NEIGHBOR_PORT_ID (\S+)
+Value NEIGHBOR_INTERFACE (.*)
+Value CHASSIS_ID (\w+?\.\w+?\.\w+?)
+Value MGMT_ADDRESS (\d+?\.\d+?\.\d+?\.\d+?|\w+?\.\w+?\.\w+?)
+Value SYSTEM_DESCRIPTION (.*)
+Value CAPABILITIES (.*)
+
+
+Start
+  ^[Ll]ocal\s[Ii]nterface\:\s${LOCAL_INTERFACE}$$
+  ^[Cc]hassis\s[idID]\:\s${CHASSIS_ID}$$
+  ^[Pp]ort\s[idID]\:\s${NEIGHBOR_PORT_ID}$$
+  ^[Pp]ort\s[Dd]escription\:\s${NEIGHBOR_INTERFACE}$$
+  ^[Ss]ystem\s[Nn]ame\:\s${NEIGHBOR}$$
+  ^[Ss]ystem\s[Dd]escription\:\s${SYSTEM_DESCRIPTION}$$
+  ^[Ee]nabled\s[Cc]apabilities\:\s${CAPABILITIES}$$
+  ^\s+IPv4\s[Aa]ddress\:\s${MGMT_ADDRESS}$$ -> Record

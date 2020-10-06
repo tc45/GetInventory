@@ -1,0 +1,379 @@
+{
+  "cisco_ios":{
+    "gather_arp":{
+      "ARP":{
+        "vrf":"VRF",
+        "address":"IP Address",
+        "mac":"Hardware/MAC",
+        "age":"Age",
+        "type":"Type",
+        "interface":"Interface"
+      }
+    },
+    "gather_mac":{
+      "MAC":{
+        "type":"Type",
+        "vlan":"VLAN",
+        "destination_address":"Destination Address",
+        "destination_port":"Destination Port"
+      }
+    },
+    "gather_interface":{
+      "Interfaces":{
+        "interface":"Interface",
+        "link_status":"Link",
+        "protocol_status":"Protocol",
+        "address":"MAC Add",
+        "description":"Description",
+        "ip_address":"IP Add",
+        "mtu":"MTU",
+        "duplex":"Duplex",
+        "speed":"Speed",
+        "bandwidth":"BW",
+        "delay":"Delay",
+        "encapsulation":"Encap",
+        "last_input": "Last Input",
+        "last_output": "Last Output",
+        "queue_strategy": "Queue Strategy",
+        "input_rate": "Input Rate",
+        "output_rate": "Output Rate",
+        "input_packets":"Input Packets",
+        "output_packets":"Output Packets",
+        "input_errors":"Input Errors",
+        "output_errors":"Output Errors",
+        "trunk_access":"Trunk/Access",
+        "l2_l3":"L2/L3",
+        "allowed":"Trunk Allowed",
+        "not_pruned":"Trunk Forwarding",
+        "native":"Native VLAN",
+        "short_if":"Short IF",
+        "vrf":"VRF",
+        "hardware_type":"Type",
+        "vlan":"Access VLAN"
+      }
+    },
+    "gather_cdp":{
+      "CDP":{
+        "local_port":"Local Port",
+        "remote_port":"Remote Port",
+        "capabilities":"Capabilities",
+        "management_ip":"MGMT IP",
+        "destination_host":"Remote Host",
+        "software_version":"Software",
+        "platform":"Platform"
+      }
+    },
+    "gather_lldp":{
+      "LLDP":{
+        "chassis_id":"Chassis ID",
+        "local_interface":"Local Port",
+        "neighbor":"Remote Host",
+        "neighbor_port_id":"Remote Port",
+        "neighbor_interface":"Remote Description",
+        "management_ip":"MGMT IP",
+        "system_description":"Software",
+        "capabilities":"Capabilities",
+        "vlan":"VLAN ID"
+      }
+    },
+    "gather_route":{
+      "Routes":{
+        "vrf":"VRF",
+        "protocol":"Protocol",
+        "network":"Route",
+        "mask":"Subnet",
+        "cidr":"CIDR",
+        "nexthop_ip":"Next Hop IP",
+        "nexthop_if":"Next Hop IF",
+        "distance":"Distance",
+        "metric":"Metric",
+        "uptime":"Uptime"
+      }
+    },
+    "gather_bgp":{
+      "BGP":{
+        "status":"Status",
+        "path_selection":"Path Selection",
+        "route_source":"Route Source",
+        "network":"Network",
+        "next_hop":"Next Hop",
+        "metric":"Next Hop",
+        "local_pref":"Local Pref",
+        "weight":"Weight",
+        "as_path":"AS Path",
+        "origin":"Origin"
+      }
+    },
+    "gather_inventory":{
+      "Inventory":{
+        "pid":"Part ID",
+        "name":"Device",
+        "descr":"Description",
+        "sn":"Serial Number"
+      }
+    }
+  },
+  "cisco_nxos":{
+    "gather_arp":{
+      "ARP":{
+        "vrf":"VRF",
+        "address":"IP Address",
+        "mac":"Hardware/MAC",
+        "age":"Age",
+        "type":"Type",
+        "interface":"Interface"
+      }
+    },
+    "gather_mac":{
+      "MAC":{
+        "type":"Type",
+        "vlan":"VLAN",
+        "mac":"Destination Address",
+        "ports":"Destination Port"
+      }
+    },
+    "gather_interface":{
+      "Interfaces":{
+        "interface":"Interface",
+        "link_status":"Link",
+        "admin_state":"Protocol",
+        "address":"MAC Add",
+        "description":"Description",
+        "ip_address":"IP Add",
+        "mtu":"MTU",
+        "duplex":"Duplex",
+        "speed":"Speed",
+        "bandwidth":"BW",
+        "delay":"Delay",
+        "encapsulation":"Encap",
+        "input_packets":"Input Packets",
+        "output_packets":"Output Packets",
+        "input_errors":"Input Errors",
+        "output_errors":"Output Errors",
+        "trunk_access":"Trunk/Access",
+        "l2_l3":"L2/L3",
+        "allowed":"Trunk Allowed",
+        "not_pruned":"Trunk Forwarding",
+        "native":"Native VLAN",
+        "short_if":"Short IF",
+        "vrf":"VRF",
+        "hardware_type":"Type",
+        "vlan":"Access VLAN"
+      }
+    },
+    "gather_cdp":{
+      "CDP":{
+        "local_port":"Local Port",
+        "remote_port":"Remote Port",
+        "capabilities":"Capabilities",
+        "mgmt_ip":"MGMT IP",
+        "dest_host":"Remote Host",
+        "version":"Software",
+        "platform":"Platform"
+      }
+    },
+    "gather_lldp":{
+      "LLDP":{
+        "chassis_id":"Chassis ID",
+        "local_interface":"Local Port",
+        "neighbor":"Remote Host",
+        "neighbor_port_id":"Remote Port",
+        "neighbor_interface":"Remote Description",
+        "mgmt_address":"MGMT IP",
+        "system_description":"Software",
+        "capabilities":"Capabilities",
+        "vlan":"VLAN ID"
+      }
+    },
+    "gather_route":{
+      "Routes":{
+        "vrf":"VRF",
+        "protocol":"Protocol",
+        "network":"Route",
+        "mask":"Subnet",
+        "cidr":"CIDR",
+        "nexthop_ip":"Next Hop IP",
+        "nexthop_if":"Next Hop IF",
+        "distance":"Distance",
+        "metric":"Metric",
+        "uptime":"Uptime"
+      }
+    },
+    "gather_bgp":{
+      "BGP":{
+        "status":"Status",
+        "path_selection":"Path Selection",
+        "route_source":"Route Source",
+        "network":"Network",
+        "next_hop":"Next Hop",
+        "metric":"Next Hop",
+        "local_pref":"Local Pref",
+        "weight":"Weight",
+        "as_path":"AS Path",
+        "origin":"Origin"
+      }
+    },
+    "gather_inventory":{
+        "Inventory":{
+          "pid":"Part ID",
+          "name":"Device",
+          "descr":"Description",
+          "sn":"Serial Number"
+        }
+      }
+  },
+  "cisco_xr":{
+    "gather_arp":{
+      "ARP":{
+        "vrf":"VRF",
+        "address":"IP Address",
+        "mac":"Hardware/MAC",
+        "age":"Age",
+        "type":"Type",
+        "interface":"Interface"
+      }
+    },
+    "gather_mac":{
+      "MAC":{
+        "type":"Type",
+        "mac":"Destination Address",
+        "ports":"LEARNED_FROM"
+      }
+    },
+    "gather_interface":{
+      "Interfaces":{
+        "interface":"Interface",
+        "link_status":"Link",
+        "admin_state":"Protocol",
+        "hardware_type":"Type",
+        "address":"MAC Add",
+        "description":"Description",
+        "ip_address":"IP Add",
+        "mtu":"MTU",
+        "duplex":"Duplex",
+        "speed":"Speed",
+        "bandwidth":"BW",
+        "encapsulation":"Encap",
+        "trunk_access":"Trunk/Access",
+        "l2_l3":"L2/L3",
+        "allowed":"Trunk Allowed",
+        "not_pruned":"Trunk Forwarding",
+        "native":"Native VLAN",
+        "short_if":"Short IF",
+        "vrf":"VRF",
+        "vlan":"Access VLAN"
+      }
+    },
+    "gather_cdp":{
+      "CDP":{
+        "local_port":"Local Port",
+        "remote_port":"Remote Port",
+        "capabilities":"Capabilities",
+        "mgmt_ip":"MGMT IP",
+        "dest_host":"Remote Host",
+        "version":"Software",
+        "platform":"Platform"
+      }
+    },
+    "gather_lldp":{
+      "LLDP":{
+        "chassis_id":"Chassis ID",
+        "local_interface":"Local Port",
+        "neighbor":"Remote Host",
+        "neighbor_port_id":"Remote Port",
+        "neighbor_interface":"Remote Description",
+        "mgmt_address":"MGMT IP",
+        "system_description":"Software",
+        "capabilities":"Capabilities"
+      }
+    },
+    "gather_route":{
+      "Routes":{
+        "vrf":"VRF",
+        "protocol":"Protocol",
+        "network":"Route",
+        "mask":"Subnet",
+        "cidr":"CIDR",
+        "nexthop_ip":"Next Hop IP",
+        "nexthop_if":"Next Hop IF",
+        "distance":"Distance",
+        "metric":"Metric",
+        "uptime":"Uptime"
+      }
+    },
+    "gather_bgp":{
+      "BGP":{
+        "status":"Status",
+        "path_selection":"Path Selection",
+        "route_source":"Route Source",
+        "network":"Network",
+        "next_hop":"Next Hop",
+        "metric":"Next Hop",
+        "local_pref":"Local Pref",
+        "weight":"Weight",
+        "as_path":"AS Path",
+        "origin":"Origin"
+      }
+    },
+    "gather_inventory":{
+        "Inventory":{
+          "pid":"Part ID",
+          "name":"Device",
+          "descr":"Description",
+          "sn":"Serial Number"
+        }
+      }
+  },
+  "extreme_exos":{
+    "gather_lldp":{
+      "LLDP":{
+        "chassis_id":"Chassis ID",
+        "local_interface":"Local Port",
+        "neighbor":"Remote Host",
+        "neighbor_port_id":"Remote Port",
+        "neighbor_interface":"Remote Description",
+        "mgmt_address":"MGMT IP",
+        "version":"Software",
+        "capabilities":"Capabilities"
+      }
+    }
+  },
+  "device_info_map":{
+    "active":2,
+    "parse_method":3,
+    "protocol":4,
+    "port":5,
+    "collection_time":8,
+    "hostname":10,
+    "model":11,
+    "serial_number":12,
+    "uptime":15,
+    "version":16,
+    "running_image":17,
+    "cpu_5_sec":44,
+    "cpu_1_min":45,
+    "cpu_5_min":46,
+    "cpu_15_min":47,
+    "sfp_count":48,
+    "conn_error":49,
+    "out_dir":50,
+    "cmd_out_file":51,
+    "json_out_file":52,
+    "elapsed_time":53,
+    "interface_count":{
+      "Ethernet":{"count": 20, "active": 21},
+      "FastEthernet":{"count": 22, "active": 23},
+      "GigabitEthernet":{"count": 24, "active": 25},
+      "TenGigEthernet":{"count": 26, "active": 27},
+      "TwentyFiveGigEthernet":{"count": 28, "active": 29},
+      "FortyGigEthernet":{"count": 30, "active": 31},
+      "HundredGigEthernet":{"count": 32, "active": 33},
+      "Serial":{"count": 18, "active": 19},
+      "Subinterfaces":{"count": 34, "active": 35},
+      "Tunnel":{"count": 36, "active": 37},
+      "Port-channel":{"count": 38, "active": 39},
+      "Loopback":{"count": 40, "active": 41},
+      "VLAN":{"count": 42, "active": 43}
+    }
+  }
+}

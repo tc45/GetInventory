@@ -1,0 +1,16 @@
+Value Required MAC (\S+)
+Value Required TYPE (\S+)
+Value LEARNED_FROM (.+?)
+Value LC_LEARNED (\S+|N\/A)
+Value Required AGE (\d+\s+\S+\s+\d+:\d+:\d+|N\/A)
+Value MAPPED_TO (\S+|N\/A)
+
+
+Start
+  ^\S+\s+\S+\s+\d+\s+\d+:\d+:\d+\.\d+\s+\S+\s*$$
+  ^Mac\s+Address\s+Type\s+Learned\s+from\/Filtered\s+on\s+LC\s+learned\s+Resync\s+Age\/Last\s+Change\s+Mapped\s+to
+  ^-+\s+-+
+  ^\s+To\s+Resynchronize
+  ^\s+l2vpn\s+resynchronize
+  ^${MAC}\s+${TYPE}\s+${LEARNED_FROM}\s+${LC_LEARNED}\s+${AGE}\s+${MAPPED_TO}$$ -> Record
+  ^. -> Error None

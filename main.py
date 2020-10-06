@@ -1,1774 +1,873 @@
-# Import openpyxl module
-import openpyxl
-import os
-from netmiko import ConnectHandler
-from netmiko import SSHDetect
-from netmiko.ssh_exception import NetMikoAuthenticationException
-from netmiko.ssh_exception import NetMikoTimeoutException
-import json
+"""###v2.0###"""
 import socket
+from threading import Thread
+import traceback
+import os
+import os.path
+import json
 import re
-import logging
 from datetime import datetime
 import time
 import getopt
 import sys
 from pathlib import Path
+import logging
+import platform
+import netmiko
+import openpyxl
+import optparse
+import textfsm
 
+INPUT_FILE_NAME = "GetInventory - Default.xlsx"
 
+"""###VERBOSE Output###"""
+VERBOSE = False
 
-DEBUG = True
+RAW_CLI_OUTPUT = False
 
-# GLOBAL VARIABLES
+TESTING = False
 
-# Required - Need input file in XLSX format.  Command line can override this default option.
-xls_input_file = "GetInventory - Default.xlsx"
+"""###Global Variables###"""
+GLBL_KEY_MAP = {}
 
-# Track row in Main spreadsheet that will be the starting row for the device IP/DNS names.
-device_row_start = 0
-
-# Track current row between devices
-current_row = 0
-
-# Create blank list of devices to be used later.
-device_list = []
-device_type = ""
-wb_obj = None
-sheet_obj = None
-conn = ""
-
-# Create arguments dictionary
-arguments = {}
-
-# Creat random variables that need to be used globally.
-username, password, secret, file_output = "", "", "", ""
-xls_main_row_username, xls_main_row_password, xls_row_error_current, file_name = "", "", 0, ""
-xls_col_main_hostname, xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_ios, \
-    xls_col_main_uptime = "", "", "", "", "", ""
-xls_col_main_parse, xls_col_main_connerror, command_list, current_hostname, json_output = "", "", "", "", ""
-xls_col_main_output_dir, xls_col_main_command_output, xls_col_main_json_output = "", "", ""
-xls_col_main_username, xls_col_main_password, xls_col_main_collection_time, xls_col_main_model = "", "", "", ""
-xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active = "", "", "", ""
-xls_col_main_serial_if, xls_col_main_eth_if, xls_col_main_fe_if, xls_col_main_ge_if = "", "", "", ""
-xls_col_main_te_if, xls_col_main_tfge_if, xls_col_main_fge_if, xls_col_main_hunge_if = "", "", "", ""
-xls_col_main_serial_if_active, xls_col_main_eth_if_active, xls_col_main_fe_if_active, \
-    xls_col_main_ge_if_active = "", "", "", ""
-xls_col_main_te_if_active, xls_col_main_tfge_if_active, xls_col_main_fge_if_active, \
-    xls_col_main_hunge_if_active = "", "", "", ""
-xls_col_main_subif, xls_col_main_subif_active, xls_col_main_vlan_if, xls_col_main_vlan_if_active = "", "", "", ""
-xls_col_main_tunnel_if, xls_col_main_tunnel_if_active, xls_col_main_port_chl_if, xls_col_main_port_chl_if_active, \
-    xls_col_main_loop_if, xls_col_main_loop_if_active = "", "", "", "", "", ""
-xls_col_main_sfp_count, xls_col_main_cpu_one, xls_col_main_cpu_five = "", "", ""
-xls_col_routes_hostname, xls_col_routes_protocol, xls_col_routes_metric, xls_col_routes_route = "", "", "", ""
-xls_col_routes_subnet, xls_col_routes_cidr, xls_col_routes_nexthopip, xls_col_routes_nexthopif = "", "", "", ""
-xls_col_routes_distance, xls_col_routes_uptime = "", ""
-xls_col_cdp_hostname, xls_col_cdp_local_port, xls_col_cdp_remote_port = "", "", ""
-xls_col_cdp_remote_host, xls_col_cdp_mgmt_ip, xls_col_cdp_software, xls_col_cdp_platform = "", "", "", ""
-xls_col_cdp_if_ip, xls_col_cdp_capabilities = "", ""
-xls_col_if_hostname, xls_col_if_interface, xls_col_if_link_status, xls_col_if_protocol_status = "", "", "", ""
-xls_col_if_l2_l3, xls_col_if_trunk_access, xls_col_if_access_vlan = "", "", ""
-xls_col_if_trunk_allowed, xls_col_if_trunk_forwarding = "", ""
-xls_col_if_mac_address, xls_col_if_ip_address, xls_col_if_desc, xls_col_if_mtu, xls_col_if_duplex = "", "", "", "", ""
-xls_col_if_speed, xls_col_if_bw, xls_col_if_delay, xls_col_if_encapsulation, xls_col_if_last_in = "", "", "", "", ""
-xls_col_if_last_out, xls_col_if_queue, xls_col_if_in_rate, xls_col_if_out_rate, xls_col_if_in_pkts = "", "", "", "", ""
-xls_col_if_out_pkts, xls_col_if_in_err, xls_col_if_out_err, xls_col_if_short_if = "", "", "", ""
-xls_col_if_trunk_native = ""
-xls_col_mac_dest_add, xls_col_mac_type, xls_col_mac_vlan, xls_col_mac_dest_port = "", "", "", ""
-xls_col_log_date, xls_col_log_time, xls_col_log_timezone, xls_col_log_facility, \
-    xls_col_log_severity, xls_col_log_mnemonic, xls_col_log_message = "", "", "", "", "", "", ""
-xls_col_arp_ip, xls_col_arp_age, xls_col_arp_mac, xls_col_arp_type, xls_col_arp_if = "", "", "", "", ""
-xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type = "", "", "", ""
-xls_col_error_device, xls_col_error_time, xls_col_error_message = "", "", ""
-# Variable to track if script found a routing table for the device.
-route_tables_present = 0
-xls_settings, xls_columns = {}, {}
-
-# Set environment variable to template directory if required.
-os.environ["NET_TEXTFSM"] = str("ntc-templates\\templates")
 
 
 def main():
-    global xls_columns, xls_settings, arguments
+    """
+    Main Functino to run everything.
+    """
+    global GLBL_KEY_MAP
+    global INPUT_FILE_NAME
+    global VERBOSE
+    global RAW_CLI_OUTPUT
+    update_ntc_templ_path()
+    cli_arg = cli_args()
+    # change the Input File from teh Default based on CLI Commands
+    if cli_arg["input_file"]:
+        INPUT_FILE_NAME = cli_arg["input_file"]
+    VERBOSE = cli_arg["verbose"]
+    ###Print Starting
+    spacer = "\n\n" + gen_spacer("#", 1)
+    print(spacer + "\t\tStarting GetInventory Script" + spacer)
+    # Get all global variables
+    print("(1) Getting JSON Data from File")
+    GLBL_KEY_MAP = get_json_data_from_file("cmd_xls_key_map.json")
+    print("(2) Opening XLS File")
+    work_book = open_xls(INPUT_FILE_NAME)
+    print("(3) Getting Setup variables")
+    setup_vars = get_setup_vars(work_book, cli_arg)
+    # Create path if raw_cli_output option was selected
+    if cli_arg["raw_cli_output"]:
+        RAW_CLI_OUTPUT = cli_arg["raw_cli_output"]
+        verify_path(setup_vars["global"]["output_dir"]+"raw_cli")
+    print("(4) Reading Network Devices")
+    network_devices = read_network_devices(work_book, setup_vars["global"])
 
-    # if DEBUG is True:
-    #    logging.basicConfig(filename="NETMIKO_LOG.txt", level=logging.DEBUG)
-    #    logger = logging.getLogger("netmiko")
-
-    # Get Command line arguments and bring back to variable.
-    arguments = get_arguments()
-
-    # open XLS file
-    open_xls()
-    # Get hostnames from XLS file
-    # Must run get_devices FIRST before getting other info.  This step indexes beginning row and adds device
-    # Remove passwords from XLSX
-    #remove_passwords()
-    #    hostname/IP addresses into a list for further use.
-    get_devices()
-    # Get main_tab settings from XLS file
-    get_main_settings_tab()
-    # Get all column data from each tab.  Assign to global variable xls_columns.
-    xls_columns = get_all_tab_settings()
-    # Grab settings from the settings tab. Grab the value in column 3
-    xls_settings = get_tab_settings("Settings", 2, start=1, row=True)
-
-    # Get column headers for data on Main tab of XLS page (index column numbers)
-    get_column_headers()
-    # Get commands from XLS spreadsheet on commands tab
-    get_commands()
-    # Connect to device list
-    connect_devices()
-    print("\n\n\nBatch job completed.")
-
-# Reference sheet lookup
-# sheet_obj.cell(row=current_row, column=xls_col_connerror).value = str(e)
-
-
-def probe_port(device, port):
-    if is_socket_open(device, 22):
-        return "ssh"
-    elif is_socket_open(device, 23):
-        return "telnet"
+    print('(5) Connecting to Devices and capturing commands')
+    if VERBOSE:
+        print("Excel Row | Host            | Message")
+        print(60*"-")
+    ###Connects to net_devices
+    """If you need to add more functions or to run more commands add them to the function below"""
+    if TESTING:
+        testing_connection(network_devices, work_book, GLBL_KEY_MAP)
+        sys.exit()
     else:
-        return "Unknown"
+        connect_devices(network_devices, setup_vars)
 
+    print("(6) Saving all the Device Data")
+    # Clean up Passwords before that
+    remove_passwords(work_book)
+    # Saves everything
+    """All Save features should be handled by this"""
+    save_device_data(network_devices, work_book, setup_vars, GLBL_KEY_MAP)
+    print(spacer + "(7) DONE with the script" + spacer)
 
-def open_xls():
-    global wb_obj, sheet_obj
-    wb_obj = openpyxl.load_workbook(xls_input_file, data_only=True)
-    sheet_obj = wb_obj['Main']
-    sheet_obj.protection.sheet = False
 
+"""######## Gather Functions that run based on Settings Tab ########"""
 
-def save_xls():
-    global wb_obj
-    if DEBUG is True:
-        print("Saving XLS workbook now - " + file_output + file_name)
-    wb_obj.save(file_output + file_name)
 
-
-def remove_passwords():
-    rw_cell(2,2,True,"","Main")
-    rw_cell(2, 3, True, "", "Main")
-
-
-def get_all_tab_settings():
-    settings_dict = {}
-    # Grab main columns from Main tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("Main", 0, start=device_row_start-1))
-    # Grab Interface columns from Interface tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("Interfaces", 0, start=1))
-    # Grab ARP columns from ARP tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("ARP", 0, start=1))
-    # Grab MAC columns from MAC tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("MAC", 0, start=1))
-    # Grab Inventory settings from CDP tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("CDP", 0, start=1))
-    # Grab Inventory settings from LLDP tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("LLDP", 0, start=1))
-    # Grab Inventory settings from Inventory tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("Inventory", 0, start=1))
-    # Grab Inventory settings from Routes tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("Routes", 0, start=1))
-    # Grab Inventory settings from BGP tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("BGP", 0, start=1))
-    # Grab Inventory settings from OSPF tab.  Grab column number as value.
-    # settings_dict.update(get_tab_settings("OSPF", 0, start=1))
-    # Grab Inventory settings from EIGRP tab.  Grab column number as value.
-    # settings_dict.update(get_tab_settings("EIGRP", 0, start=1))
-    # Grab Inventory settings from Errors tab.  Grab column number as value.
-    settings_dict.update(get_tab_settings("Errors", 0, start=1))
-
-    return settings_dict
-
-
-def get_tab_settings(tab_name, lookup_value=0, start=1, row=False):
-
-    # lookup_value variable is used to determine if the row#/Column# or a cell value should be looked up.
-    # If no value is specified or a 0,  lookup just the column or row number.  If a value is specified,
-    # That indicates the steps over to look in the spreadsheet for the value.
-
-    # Create dictionary that will be returned with function
-    settings_dict = {}
-
-    # Set sheet to value passed to function
-    sheet_obj = wb_obj[tab_name]
-
-    # Determine max rows and max columns for sheet
-    num_rows = sheet_obj.max_row
-    num_columns = sheet_obj.max_column
-
-    if row is False:
-        for i in range(1, num_columns + 1):
-            cell_value = rw_cell(start, i, False, sheet=tab_name).upper()
-            cell_value = cell_value.replace(" - ", "_")
-            cell_value = cell_value.replace(" ", "_")
-            cell_value = cell_value.replace("/", "_")
-            cell_value = cell_value.replace("-", "_")
-            cell_value = tab_name.upper() + "_" + cell_value
-
-            if cell_value is not None:
-                if lookup_value != 0:
-                    settings_dict[cell_value] = rw_cell(start, i + lookup_value, False, sheet=tab_name)
-                else:
-                    settings_dict[cell_value] = i
-    else:
-        for i in range(1, num_rows + 1):
-            cell_value = rw_cell(i, start, False, sheet=tab_name)
-            if cell_value is not None:
-                if lookup_value != 0:
-                    settings_dict[cell_value] = rw_cell(i, start + lookup_value, False, sheet=tab_name)
-                else:
-                    settings_dict[cell_value] = i
-
-    return settings_dict
-
-
-def get_main_settings_tab():
-    global username, password, secret, file_output, file_name
-
-    for i in range(1, device_row_start - 1):
-        cell_value = rw_cell(i, 1)
-        if cell_value == "Username":
-            if username == "":
-                username = rw_cell(i, 2)
-                if DEBUG is True:
-                    print("Username set to " + username)
-        elif cell_value == "Password":
-            if password == "":
-                password = rw_cell(i, 2)
-                if DEBUG is True:
-                    print("Password has been set to *******")
-        elif cell_value == "Secret":
-            if secret == "":
-                secret = rw_cell(i, 2)
-                if DEBUG is True:
-                    print("Secret has been set to ********")
-        elif cell_value == "Output Directory":
-            if file_output == "":
-                file_output = rw_cell(i, 2)
-                if DEBUG is True:
-                    print("File output directory set to " + file_output)
-        elif cell_value == "Output Name":
-            if file_name == "":
-                file_name = rw_cell(i, 2)
-                if DEBUG is True:
-                    print("File output name set to " + file_name)
-
-    if right(file_output, 1) != "\\":
-        if DEBUG is True:
-            print("File path didn't end in backslash.")
-        file_output = file_output + "\\"
-    verify_path(file_output)
-    verify_path(file_output + "JSON\\")
-
-    if right(file_name, 4).lower() != "xlsx":
-        file_name = file_name + ".xlsx"
-        if DEBUG is True:
-            print("File path didn't end in XLSX which is required format.  Setting to XLSX.")
-
-    if DEBUG is True:
-        print("Output file will be stored as " + file_output + file_name)
-
-
-def get_column_headers():
-    global xls_col_main_protocol, xls_col_main_port, xls_col_main_type, xls_col_main_hostname, xls_col_main_ios, xls_col_main_uptime, \
-        xls_col_main_connerror, xls_col_main_output_dir, xls_col_main_command_output, xls_col_main_json_output, \
-        xls_col_routes_cidr, xls_col_routes_distance, xls_col_routes_hostname, xls_col_routes_metric, \
-        xls_col_routes_nexthopif, xls_col_routes_nexthopip, xls_col_routes_protocol, xls_col_routes_route, \
-        xls_col_routes_subnet, xls_col_routes_uptime, xls_col_cdp_hostname, xls_col_cdp_local_port, \
-        xls_col_cdp_remote_port, xls_col_cdp_remote_host, xls_col_cdp_mgmt_ip, xls_col_cdp_software, \
-        xls_col_cdp_platform, xls_col_cdp_if_ip, xls_col_cdp_capabilities, \
-        xls_col_if_hostname, xls_col_if_interface, xls_col_if_link_status, \
-        xls_col_if_protocol_status, xls_col_if_l2_l3, xls_col_if_trunk_access, xls_col_if_access_vlan, \
-        xls_col_if_trunk_allowed, xls_col_if_trunk_forwarding, xls_col_if_mac_address, xls_col_if_ip_address, \
-        xls_col_if_desc, xls_col_if_mtu, xls_col_if_duplex, xls_col_if_speed, xls_col_if_bw, xls_col_if_delay, \
-        xls_col_if_encapsulation, xls_col_if_last_in, xls_col_if_last_out, xls_col_if_queue, xls_col_if_in_rate, \
-        xls_col_if_out_rate, xls_col_if_in_pkts, xls_col_if_out_pkts, xls_col_if_in_err, xls_col_if_out_err, \
-        xls_col_if_short_if, xls_col_if_trunk_native, xls_col_main_serial_if, xls_col_main_eth_if, xls_col_main_fe_if, xls_col_main_ge_if, \
-        xls_col_main_te_if, xls_col_main_tfge_if, xls_col_main_fge_if, xls_col_main_hunge_if, xls_col_main_serial_if_active, \
-        xls_col_main_eth_if_active, xls_col_main_fe_if_active, xls_col_main_ge_if_active, xls_col_main_te_if_active,  \
-        xls_col_main_tfge_if_active, xls_col_main_fge_if_active, xls_col_main_hunge_if_active, xls_col_main_sfp_count, xls_col_main_cpu_one, \
-        xls_col_main_cpu_five, xls_col_main_serial, xls_col_main_flash, xls_col_main_memory, xls_col_main_active, xls_col_main_username, \
-        xls_col_main_password, xls_col_main_collection_time, xls_col_main_model, xls_col_mac_dest_add, xls_col_mac_type, \
-        xls_col_mac_vlan, xls_col_mac_dest_port, xls_col_log_date, xls_col_log_time, xls_col_log_timezone, \
-        xls_col_log_facility, xls_col_log_severity, xls_col_log_mnemonic, xls_col_arp_ip, xls_col_arp_age, \
-        xls_col_arp_mac, xls_col_arp_type, xls_col_arp_if, xls_col_log_message, xls_col_main_subif, xls_col_main_subif_active, \
-        xls_col_main_parse, xls_col_arp_vrf, xls_col_if_vrf, xls_col_routes_vrf, xls_col_if_type, xls_col_error_device, \
-        xls_col_error_message, xls_col_error_time, xls_col_main_tunnel_if, xls_col_main_tunnel_if_active, xls_col_main_port_chl_if, \
-        xls_col_main_port_chl_if_active, xls_col_main_loop_if, xls_col_main_loop_if_active, xls_col_main_vlan_if, xls_col_main_vlan_if_active
-
-    sheet = wb_obj["Main"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet_obj.cell(row=device_row_start - 1, column=i).value
-        if cell_value is not None:
-            if cell_value == "Host":
-                xls_col_main_hostname = i
-            elif cell_value == "Parse Method":
-                xls_col_main_parse = i
-            elif cell_value == "Protocol":
-                xls_col_main_protocol = i
-            elif cell_value == "Port Override":
-                xls_col_main_port = i
-            elif cell_value == "Connection Error":
-                xls_col_main_connerror = i
-            elif cell_value == "Device Type":
-                xls_col_main_type = i
-            elif cell_value == "Hostname":
-                xls_col_main_hostname = i
-            elif cell_value == "IOS Version":
-                xls_col_main_ios = i
-            elif cell_value == "Uptime":
-                xls_col_main_uptime = i
-            elif cell_value == "Output Directory":
-                xls_col_main_output_dir = i
-            elif cell_value == "Command Output":
-                xls_col_main_command_output = i
-            elif cell_value == "JSON Output":
-                xls_col_main_json_output = i
-            elif cell_value == "Active":
-                xls_col_main_active = i
-            elif cell_value == "Username":
-                xls_col_main_username = i
-            elif cell_value == "Password":
-                xls_col_main_password = i
-            elif cell_value == "Collection Date/Time":
-                xls_col_main_collection_time = i
-            elif cell_value == "Model":
-                xls_col_main_model = i
-            elif cell_value == "Serial Number":
-                xls_col_main_serial = i
-            elif cell_value == "Memory":
-                xls_col_main_memory = i
-            elif cell_value == "Flash":
-                xls_col_main_flash = i
-            elif cell_value == "Serial IF":
-                xls_col_main_serial_if = i
-            elif cell_value == "Serial IF - Active":
-                xls_col_main_serial_if_active = i
-            elif cell_value == "Ethernet IF":
-                xls_col_main_eth_if = i
-            elif cell_value == "Ethernet IF - Active":
-                xls_col_main_eth_if_active = i
-            elif cell_value == "FastEthernet IF":
-                xls_col_main_fe_if = i
-            elif cell_value == "FastEthernet IF - Active":
-                xls_col_main_fe_if_active = i
-            elif cell_value == "GigEth IF":
-                xls_col_main_ge_if = i
-            elif cell_value == "GigEth IF - Active":
-                xls_col_main_ge_if_active = i
-            elif cell_value == "TenGig IF":
-                xls_col_main_te_if = i
-            elif cell_value == "TenGig IF - Active":
-                xls_col_main_te_if_active = i
-            elif cell_value == "TwentyFiveGig IF":
-                xls_col_main_tfge_if = i
-            elif cell_value == "TwentyFiveGig IF - Active":
-                xls_col_main_tfge_if_active = i
-            elif cell_value == "FortyGig IF":
-                xls_col_main_fge_if = i
-            elif cell_value == "FortyGig IF - Active":
-                xls_col_main_fge_if_active = i
-            elif cell_value == "HundredGig IF":
-                xls_col_main_hunge_if = i
-            elif cell_value == "HundredGig IF - Active":
-                xls_col_main_hunge_if_active = i
-            elif cell_value == "Subinterfaces":
-                xls_col_main_subif = i
-            elif cell_value == "Subinterfaces - Active":
-                xls_col_main_subif_active = i
-            elif cell_value == "Tunnel IF":
-                xls_col_main_tunnel_if = i
-            elif cell_value == "Tunnel IF - Active":
-                xls_col_main_tunnel_if_active = i
-            elif cell_value == "Port-Channel IF":
-                xls_col_main_port_chl_if = i
-            elif cell_value == "Port-Channel IF - Active":
-                xls_col_main_port_chl_if_active = i
-            elif cell_value == "Loopback IF":
-                xls_col_main_loop_if = i
-            elif cell_value == "Loopback IF - Active":
-                xls_col_main_loop_if_active = i
-            elif cell_value == "VLAN IF":
-                xls_col_main_vlan_if = i
-            elif cell_value == "VLAN IF - Active":
-                xls_col_main_vlan_if_active = i
-            elif cell_value == "One Min CPU":
-                xls_col_main_cpu_one = i
-            elif cell_value == "Five Min CPU":
-                xls_col_main_cpu_five = i
-            elif cell_value == "SFP Count":
-                xls_col_main_sfp_count = i
-
-    sheet = wb_obj["Routes"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "Hostname":
-                xls_col_routes_hostname = i
-            elif cell_value == "VRF":
-                xls_col_routes_vrf = i
-            elif cell_value == "Protocol":
-                xls_col_routes_protocol = i
-            elif cell_value == "Metric":
-                xls_col_routes_metric = i
-            elif cell_value == "Route":
-                xls_col_routes_route = i
-            elif cell_value == "Subnet":
-                xls_col_routes_subnet = i
-            elif cell_value == "CIDR":
-                xls_col_routes_cidr = i
-            elif cell_value == "Next Hop IP":
-                xls_col_routes_nexthopip = i
-            elif cell_value == "Next Hop IF":
-                xls_col_routes_nexthopif = i
-            elif cell_value == "Distance":
-                xls_col_routes_distance = i
-            elif cell_value == "Metric":
-                xls_col_routes_metric = i
-            elif cell_value == "Uptime":
-                xls_col_routes_uptime = i
-
-    sheet = wb_obj["CDP"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "Hostname":
-                xls_col_cdp_hostname = i
-            elif cell_value == "Local Port":
-                xls_col_cdp_local_port = i
-            elif cell_value == "Remote Host":
-                xls_col_cdp_remote_host = i
-            elif cell_value == "Remote Port":
-                xls_col_cdp_remote_port = i
-            elif cell_value == "Interface IP":
-                xls_col_cdp_if_ip = i
-            elif cell_value == "MGMT IP":
-                xls_col_cdp_mgmt_ip = i
-            elif cell_value == "Platform":
-                xls_col_cdp_platform = i
-            elif cell_value == "Software":
-                xls_col_cdp_software = i
-            elif cell_value == "Capabilities":
-                xls_col_cdp_capabilities = i
-
-    sheet = wb_obj["Interfaces"]
-    max_column = sheet.max_column
-
-    for i in range(1, max_column + 1):
-        cell_value = sheet.cell(row=1, column=i).value
-        if cell_value != "":
-            if cell_value == "Hostname":
-                xls_col_if_hostname = i
-            elif cell_value == "Interface":
-                xls_col_if_interface = i
-            elif cell_value == "Short IF":
-                xls_col_if_short_if = i
-            elif cell_value == "Description":
-                xls_col_if_desc = i
-            elif cell_value == "Type":
-                xls_col_if_type = i
-            elif cell_value == "VRF":
-                xls_col_if_vrf = i
-            elif cell_value == "Link":
-                xls_col_if_link_status = i
-            elif cell_value == "Protocol":
-                xls_col_if_protocol_status = i
-            elif cell_value == "L2/L3":
-                xls_col_if_l2_l3 = i
-            elif cell_value == "Trunk/Access":
-                xls_col_if_trunk_access = i
-            elif cell_value == "Access VLAN":
-                xls_col_if_access_vlan = i
-            elif cell_value == "Trunk Allowed":
-                xls_col_if_trunk_allowed = i
-            elif cell_value == "Trunk Forwarding":
-                xls_col_if_trunk_forwarding = i
-            elif cell_value == "Native VLAN":
-                xls_col_if_trunk_native = i
-            elif cell_value == "MAC Add":
-                xls_col_if_mac_address = i
-            elif cell_value == "IP Add":
-                xls_col_if_ip_address = i
-            elif cell_value == "MTU":
-                xls_col_if_mtu = i
-            elif cell_value == "Duplex":
-                xls_col_if_duplex = i
-            elif cell_value == "Speed":
-                xls_col_if_speed = i
-            elif cell_value == "BW":
-                xls_col_if_bw = i
-            elif cell_value == "Delay":
-                xls_col_if_delay = i
-            elif cell_value == "Encap":
-                xls_col_if_encapsulation = i
-            elif cell_value == "Last Input":
-                xls_col_if_last_in = i
-            elif cell_value == "Last Output":
-                xls_col_if_last_out = i
-            elif cell_value == "Queue Strategy":
-                xls_col_if_queue = i
-            elif cell_value == "Input Rate":
-                xls_col_if_in_rate = i
-            elif cell_value == "Output Rate":
-                xls_col_if_out_rate = i
-            elif cell_value == "Input Packets":
-                xls_col_if_in_pkts = i
-            elif cell_value == "Output Packets":
-                xls_col_if_out_pkts = i
-            elif cell_value == "Input Errors":
-                xls_col_if_in_err = i
-            elif cell_value == "Output Errors":
-                xls_col_if_out_err = i
-
-
-def get_commands():
-    global command_list
-    sheet = wb_obj["Commands"]
-    max_row = sheet.max_row
-    for i in range(1, max_row + 1):
-        command = sheet.cell(row=i, column=1).value
-        if command != "":
-            command_list = command_list + command
-            if i < max_row:
-                command_list = command_list + ","
-
-    command_list = command_list.split(",")
-
-    if DEBUG is True:
-        print("The following commands were found on the 'Commands' tab")
-        for x in range(len(command_list)):
-            print(str(x + 1) + " - " + command_list[x])
-
-
-def get_devices():
-    global device_row_start, device_list, current_row
-    xls_rows_total = sheet_obj.max_row
-
-    for i in range(1, xls_rows_total + 1):
-        cell_value = rw_cell(i, 1)
-        if device_row_start > 0:
-            if cell_value is not None:
-                device_list.append(cell_value)
-        if cell_value == "Host":
-            device_row_start = i + 1
-            current_row = device_row_start
-    if DEBUG is True:
-        print("Total rows in this sheet is " + str(xls_rows_total))
-        print("Devices found in spreadsheet:")
-        for i in range(0, len(device_list)):
-            print(str(i + 1) + ": " + device_list[i])
-        print('\n')
-
-
-def set_protocol(device):
-
-    port = rw_cell(current_row, xls_col_main_port)
-    protocol = rw_cell(current_row, xls_col_main_protocol)
-
-    if port is None:
-        if DEBUG is True:
-            print("No Protocol found for device " + device + ".")
-        if protocol == "telnet":
-            if DEBUG is True:
-                print("Setting protocol to telnet.")
-            port = 23
-        else:
-            if DEBUG is True:
-                print("Setting protocol to ssh.")
-            port = 22
-
-    if protocol is None:
-        protocol = "ssh"
-
-    if DEBUG is True:
-        print("Protocol is currently set to: " + str(protocol))
-
-    return [port, protocol]
-
-
-def connect_devices():
-    global conn, current_row, current_hostname, json_output, file_output, route_tables_present
-    json_file, commands_file, commands = "", "", ""
-    device = {}
-
-    for i in device_list:
-        start_time = time.time()
-
-        # Reset routing table tracker to 0 for each new device
-        route_tables_present = 0
-
-        # Create list for each device that will house the VRF info
-        device_vrfs = []
-
-        # Read the parser type (if specified) from the input spreadsheet
-        conn_type = rw_cell(current_row, xls_col_main_parse, False, "", "Main")
-
-        # If conn_type is set to autodetect, run OS guesser
-        if conn_type == "autodetect":
-            conn_type = guess_os(i, username, password, secret)
-
-        # if conn_type is original not set, or comes back as none, set it to cisco_ios
-        if conn_type is None:
-            conn_type = "cisco_ios"
-
-        # Write the learned conn_type back to the spreadsheet.
-        rw_cell(current_row, xls_col_main_parse, True, conn_type, "Main")
-
-        # Reset JSON and command string for each device
-        json_output = ""
-
-        # Check if device has protocol and ports associated.  If not assume SSH port 22.
-        ports = set_protocol(i)
-
-        conn_port = ports[0]
-        conn_protocol = ports[1]
-
-        print('\n' + '\n' + '\n' + "Connecting to device " + i + " on port " + str(conn_port) +
-              " using protocol " + str(conn_protocol) + "." + '\n')
-
-        device = {
-            'device_type': conn_type + "_" + conn_protocol,
-            'ip': i,
-            'username': username,
-            'password': password,
-            'secret': secret,
-            'port': conn_port,
-            'global_delay_factor': 2,
-        }
-
-        if DEBUG is True:
-            device['verbose'] = True
-
-        try:
-            conn = ConnectHandler(**device)
-            conn.enable()
-            command = "term len 0"
-
-            output = conn.send_command(command)
-            if DEBUG is True:
-                print("Set terminal length to 0 for this session.")
-        except Exception as e:
-            rw_cell(current_row, xls_col_main_connerror, True, str(e))
-            write_error(i, str(e))
-        else:
-            # Only gather version data if settings tab set to Yes.
-            if xls_settings["GATHER_VERSION"] == "Yes":
-                try:
-                    # Run all JSON related output here.
-                    show_version(i)
-                except Exception as e:
-                    print("ERROR - Show version failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show version failed due to error: " + str(e))
-
-            # Always gather VRF info since it is used for multiple tables.
-            try:
-                device_vrfs = show_vrf(i)
-            except Exception as e:
-                print("ERROR - Show ip vrf failed due to error: " + str(e))
-                write_error(current_hostname, "ERROR - Show ip vrf failed due to error: " + str(e))
-
-            # try:
-            #     # Run all JSON related output here.
-            #     show_license(i, conn_type)
-            # except Exception as e:
-            #     print("ERROR - Show license failed due to error: " + str(e))
-            #     write_error(current_hostname, "ERROR - Show license failed due to error: " + str(e))
-
-            # Only gather interface details if setting tab set to Yes.
-            if xls_settings["GATHER_INTERFACE"] == "Yes":
-                try:
-                    show_interfaces(i, conn_type)
-                except Exception as e:
-                    print("ERROR - Show interfaces failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show interfaces failed due to error: " + str(e))
-            # Only gather interface details if setting tab set to Yes.
-
-            if xls_settings["GATHER_BGP"] == "Yes":
-                try:
-                    show_ip_bgp(i, conn_type)
-                except Exception as e:
-                    print("ERROR - Show ip bgp failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show ip bgp failed due to error: " + str(e))
-
-            # Only gather Route table info if settings set to Yes.
-            if xls_settings['GATHER_ROUTE'] == "Yes":
-                try:
-                    show_ip_route(i, conn_type, device_vrfs)
-                except Exception as e:
-                    print("ERROR - Show ip route failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show ip route failed due to error: " + str(e))
-
-            # Only gather CDP table info if settings set to Yes.
-            if xls_settings['GATHER_CDP'] == "Yes":
-                try:
-                    show_cdp_neighbor(i, conn_type)
-                except Exception as e:
-                    print("ERROR - Show cdp neighbor failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show cdp neighbor failed due to error: " + str(e))
-
-            # Only gather LLDP table info if settings set to Yes.
-            if xls_settings['GATHER_LLDP'] == "Yes":
-                try:
-                    show_lldp_neighbor(i, conn_type)
-                except Exception as e:
-                    print("ERROR - Show cdp neighbor failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show cdp neighbor failed due to error: " + str(e))
-
-            # Only gather Commands tab commands info if settings set to Yes.
-            if xls_settings['GATHER_COMMANDS'] == "Yes":
-                try:
-                    # Run commands to send to text file
-                    commands = show_commands(i)
-                    try:
-                        # Write commands returned from function to text file.
-                        commands_file = current_hostname + "-commands.txt"
-                        write_file(file_output + commands_file, commands, False)
-                    except Exception as e:
-                        write_error(current_hostname, "ERROR - Writing commands to file failed: " + str(e))
-                except Exception as e:
-                    print("ERROR - Show multiple commands failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show multiple commands failed due to error: " + str(e))
-            # Grab additional JSON data
-
-            # Only gather Inventory table info if settings set to Yes.
-            if xls_settings['GATHER_INVENTORY'] == "Yes":
-                try:
-                    show_inventory(current_hostname)
-                except Exception as e:
-                    print("ERROR - Show inventory command failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show inventory command failed due to error: " + str(e))
-
-            # Only gather ARP table info if settings set to Yes.
-            if xls_settings['GATHER_ARP'] == "Yes":
-                try:
-                    show_ip_arp(i, conn_type, device_vrfs)
-                except Exception as e:
-                    print("ERROR - Show arp command failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show arp command failed due to error: " + str(e))
-
-            # Only gather MAC table info if settings set to Yes.
-            if xls_settings['GATHER_MAC'] == "Yes":
-                try:
-                    show_mac_address_table(i, conn_type)
-                except Exception as e:
-                    print("ERROR - Show mac command failed due to error: " + str(e))
-                    write_error(current_hostname, "ERROR - Show mac command failed due to error: " + str(e))
-
-            # show_logging(i)
-            # show_proc_memory(i)
-            show_proc_cpu(i, conn_type)
-
-            try:
-                if json_output != "":
-                    # Write JSON File for each device
-                    json_file = current_hostname + "-JSON-commands.txt"
-                    write_file(file_output + "JSON\\" + json_file, json_output, False)
-            except Exception as e:
-                write_error(current_hostname, "ERROR - Writing JSON to file failed: " + str(e))
-
-            # Write unique device data to spreadsheet
-            rw_cell(current_row, xls_col_main_protocol, True, conn_protocol)
-            rw_cell(current_row, xls_col_main_port, True, conn_port)
-            rw_cell(current_row, xls_col_main_output_dir, True, file_output)
-            rw_cell(current_row, xls_col_main_command_output, True, commands_file)
-            rw_cell(current_row, xls_col_main_json_output, True, json_file)
-
-            conn.disconnect()
-
-        # Write elapsed time for device completion to Main tab.
-        end_time = time.time()
-        time_diff = end_time - start_time
-        rw_cell(current_row, xls_columns['MAIN_ELAPSED_TIME'], True, time_diff)
-        # Increase row count by 1
-        current_row = current_row + 1
-
-        # Save XLS file after device completed
-        save_xls()
-
-
-def show_commands(device):
-    global command_list
-    command_output = "------------------------------------------------------------" + "\n" + \
-                     "------------------------------------------------------------" + "\n" + \
-                     "                 Connected to " + device + "\n" + \
-                     "------------------------------------------------------------" + "\n" + \
-                     "------------------------------------------------------------" + "\n" + \
-                     "The following commands will be executed" + "\n"
-
-    for x in range(len(command_list)):
-        command_output = command_output + command_list[x] + "\n"
-
-    for x in range(len(command_list)):
-
-        output = conn.send_command(command_list[x])
-        command_output = command_output + wrap_command(command_list[x], output)
-
-    if DEBUG is True:
-        print(command_output)
-
-    return command_output
-
-
-def write_file(filename, file_data, append=False):
-    file = ""
-
-    if append is True:
-        if os.path.exists(filename):
-            append = True
-        else:
-            append = False
-
-    if append is False:
-        file = open(filename, "w+")
-    elif append is True:
-        file = open(filename, "a+")
-
-    if DEBUG is True:
-        print("Writing file  " + filename + "' to disk.")
-
-    file.write(file_data)
-    file.close()
-
-
-def show_version(current_device):
-    global device_type, current_hostname, json_output
-    file_data = ""
-    if DEBUG is True:
-        print("Starting show version for device " + current_device)
+## XR Ready
+def gather_version(connection, net_dev, count):
+    """
+    Captures the show version command and saves the textfsm outcome to
+    the NetworkDevice. No additional parsing needed at the moment.
+    """
     command = "show version"
-
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        # print(json.dumps(output, indent=2))
-        print(string_output)
-
-    rw_cell(current_row, xls_col_main_collection_time, True, get_current_time("dt"), "Main")
-
-    current_hostname = output[0]['hostname']
-    rw_cell(current_row, xls_col_main_hostname, True, output[0]['hostname'])
-    rw_cell(current_row, xls_columns['MAIN_IOS_VERSION'], True, output[0]['version'])
-    rw_cell(current_row, xls_columns['MAIN_IOS_FILENAME'], True, output[0]['running_image'])
-
-    if output[0]['serial']:
-        serial_len = len(output[0]['serial'])
-        if serial_len > 1:
-            str_serial = ""
-            for serial in output[0]['serial']:
-                if str_serial != "":
-                    str_serial += ", "
-                str_serial += serial
-
-            # rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'])
-            rw_cell(current_row, xls_col_main_serial, True, str_serial)
-        elif serial_len == 1:
-            rw_cell(current_row, xls_col_main_serial, True, output[0]['serial'][0])
-    if output[0]['hardware']:
-        hw_len = len(output[0]['hardware'])
-        if hw_len > 1:
-            if hw_len > 1:
-                str_hw = ""
-                for hw in output[0]['hardware']:
-                    if str_hw != "":
-                        str_hw += ", "
-                    str_hw += hw
-                rw_cell(current_row, xls_col_main_model, True, str_hw)
-        elif hw_len == 1:
-            rw_cell(current_row, xls_col_main_model, True, output[0]['hardware'][0])
-    # rw_cell(current_row, xls_col_last_reload, True, output[0]['reload_reason'])
-    rw_cell(current_row, xls_col_main_uptime, True, format_uptime(output[0]['uptime']))
-
-    if DEBUG is True:
-        print("///// ENDING show version for device " + current_device + "/////")
-
-    file_data = wrap_command(command, string_output)
-    json_output = json_output + file_data
-
-    try:
-        conn.send_command('show interface switchport', use_textfsm=True)
-        device_type = "Switch"
-        rw_cell(current_row, xls_col_main_type, True, device_type)
-    except Exception as e:
-        device_type = "Router"
-        rw_cell(current_row, xls_col_main_type, True, device_type)
+    log_cmd_textfsm(connection, net_dev, command, count)
+    net_dev.read_vers_info()
+    show_proc_cpu(connection, net_dev, count)
 
 
-def show_inventory(current_device):
-    global json_output
-
-    sheet = wb_obj['Inventory']
-    max_row = sheet.max_row + 1
-
-    if DEBUG is True:
-        print("Starting show inventory for device " + current_device)
-
-    command = "show inventory"
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-
-    if DEBUG is True:
-        print ("///// ENDING show inventory for device " + current_device + "/////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-    if isinstance(output, list):
-        for inv in output:
-            rw_cell(max_row, xls_columns['INVENTORY_HOSTNAME'], True, current_device, "Inventory")
-            rw_cell(max_row, xls_columns['INVENTORY_PART_ID'], True, inv['pid'], "Inventory")
-            rw_cell(max_row, xls_columns['INVENTORY_DEVICE'], True, inv['name'], "Inventory")
-            rw_cell(max_row, xls_columns['INVENTORY_DESCRIPTION'], True, inv['descr'], "Inventory")
-            rw_cell(max_row, xls_columns['INVENTORY_SERIAL_NUMBER'], True, inv['sn'], "Inventory")
-            max_row += 1
-
-
-def guess_os(device, str_username, str_password, str_secret):
-    if str_secret == "":
-        str_secret = password
-    remote_device = {'device_type': 'autodetect',
-                     'host': device,
-                     'username': str_username,
-                     'password': str_password,
-                     'secret': str_secret}
-    try:
-        guesser = SSHDetect(**remote_device)
-        best_match = guesser.autodetect()
-    except:
-        return None
-    else:
-        print("Device Guesser: " + best_match)
-        return best_match
-
-
-def show_ip_arp(current_device, conn_type, vrf_list):
-    global json_output
-
-    sheet = wb_obj['ARP']
-    max_row = sheet.max_row + 1
-
-    if DEBUG is True:
-        print("Starting show ip arp for device " + current_device)
-
+## XR Ready, Need to test more
+def gather_arp(connection, net_dev, count):
+    """
+    Captures arp information and utilizing the vrf data it parses the
+    output to prepare it for extraction to WB.
+    """
+    vrf_list = get_vrf_names(net_dev, connection, count)
+    arp_list = []
     for vrf in vrf_list:
-
-        vrf_string, string_output, output = "", "", ""
+        vrf_string, output = "", ""
         if vrf != "global":
             vrf_string = " vrf " + vrf
-
-        if vrf == "default" and conn_type == "cisco_nxos":
-            continue
-
-        command = "show ip arp" + vrf_string
-
-        if DEBUG is True:
-            print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-        try:
-            output = conn.send_command(command, use_textfsm=True)
-        except Exception as e:
-            if DEBUG is True:
-                print(command + " could not be parsed" + str(e))
-            write_error(current_hostname, command + " could not be parsed" + str(e))
+        if net_dev.parse_method == "cisco_xr":
+            command = "show arp" + vrf_string
+            txt_tmpl = "ntc-templates/test_tmpl/cisco_xr_show_arp.textfsm"
+            txt_tmpl = mod_dir_based_on_os(txt_tmpl)
         else:
-            string_output = json.dumps(output, indent=2)
-
-        json_output = json_output + wrap_command(command, string_output)
-
-        if DEBUG is True:
-            print(string_output)
-
-        # Write Routing data to spreadsheet 'ARP' tab
+            command = "show ip arp" + vrf_string
+            txt_tmpl = None
+        output = log_cmd_textfsm(connection, net_dev, command, count, txt_tmpl)
         if isinstance(output, list):
             for arp in output:
-                rw_cell(max_row, xls_columns['ARP_HOSTNAME'], True, current_hostname, "ARP")
-                rw_cell(max_row, xls_columns['ARP_VRF'], True, vrf, "ARP")
-                rw_cell(max_row, xls_columns['ARP_IP_ADDRESS'], True, arp['address'], "ARP")
-                rw_cell(max_row, xls_columns['ARP_AGE'], True, arp['age'], "ARP")
-                rw_cell(max_row, xls_columns['ARP_HARDWARE_MAC'], True, arp['mac'], "ARP")
-                if conn_type == "cisco_ios":
-                    rw_cell(max_row, xls_columns['ARP_TYPE'], True, arp['type'], "ARP")
-                elif conn_type == "cisco_nxos":
-                    rw_cell(max_row, xls_columns['ARP_TYPE'], True, "ARPA", "ARP")
-                rw_cell(max_row, xls_columns['ARP_INTERFACE'], True, arp['interface'], "ARP")
-                max_row = max_row + 1
+                arp["vrf"] = vrf
+                if net_dev.parse_method in ["cisco_nxos"]:
+                    arp["type"] = "ARPA"
+                arp_list.append(arp)
         else:
-            rw_cell(max_row, xls_columns['ARP_HOSTNAME'], True, current_hostname, "ARP")
-            rw_cell(max_row, xls_columns['ARP_VRF'], True, vrf, "ARP")
-            rw_cell(max_row, xls_columns['ARP_IP_ADDRESS'], True, "No ARP Data Found", "ARP")
-
-        if DEBUG is True:
-            print("///// ENDING show ip arp for device " + current_device + "/////")
-
-        json_output = json_output + wrap_command(command, string_output)
+            arp = {}
+            arp['vrf'] = vrf
+            arp['address'] = "No ARP Data Found"
+            arp_list.append(arp)
+    net_dev.show_for_xls["gather_arp"] = arp_list
 
 
-def show_mac_address_table(current_device, current_device_type):
-    global json_output
-
-    sheet = wb_obj['MAC']
-    max_row = sheet.max_row + 1
-
-    if DEBUG is True:
-        print("Starting show mac address-table for device " + current_device)
-
+## XR Ready, Need to test more
+def gather_mac(connection, net_dev, count):
+    """
+    All the parsing of the
+    """
     command = "show mac address-table"
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-
-    # Write Routing data to spreadsheet 'MAC' tab
-    if isinstance(output, list):
-        for mac in output:
-            # TEXTFSM Parser uses different key names for IOS vs NXOS.  Set variable names per device by platform
-            # to make it easier to write rw_cell strings below.
-            destination_add = ""
-            destination_port = ""
-
-            if current_device_type == "cisco_ios":
-                destination_add = str(mac['destination_address'])
-                destination_port = str(mac['destination_port'])
-            elif current_device_type == "cisco_nxos":
-                destination_add = str(mac['mac'])
-                destination_port = str(mac['ports'])
-
-            rw_cell(max_row, xls_columns['MAC_HOSTNAME'], True, current_hostname, "MAC")
-            rw_cell(max_row, xls_columns['MAC_TYPE'], True, mac['type'], "MAC")
-            rw_cell(max_row, xls_columns['MAC_VLAN'], True, str(mac['vlan']), "MAC")
-            rw_cell(max_row, xls_columns['MAC_DESTINATION_ADDRESS'], True, destination_add, "MAC")
-            rw_cell(max_row, xls_columns['MAC_DESTINATION_PORT'], True, destination_port, "MAC")
-
-            max_row = max_row + 1
+    if net_dev.parse_method == "cisco_xr":
+        output = []
+        cmd = "show l2vpn forwarding bridge-domain {} mac-address location {}"
+        locations = get_xr_locations(net_dev, connection, count)
+        bg_grp_dmns = get_xr_bg_grp_dmns(net_dev, connection, count)
+        txtfsm = "ntc-templates/test_tmpl/cisco_xr_show_l2vpn_bridge-domain_mac.textfsm"
+        for dmn in bg_grp_dmns:
+            for lctn in locations:
+                command = cmd.format(dmn, lctn)
+                output += log_cmd_textfsm(connection, net_dev, command, count, txtfsm)
+        if not output:
+            output += [{"MAC": "No MAC Data"}]
     else:
-        if DEBUG is True:
-            print("No MAC Address Table results found for device " + current_device + ".")
-        write_error(current_hostname, "No MAC Address Table results found for device " + current_device + ".")
-
-    if DEBUG is True:
-        print("///// ENDING show mac address-table for device " + current_device + "/////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-
-def show_logging(current_device):
-    global json_output
-
-    sheet = wb_obj['Logging']
-    max_row = sheet.max_row + 1
-
-    if DEBUG is True:
-        print("Starting show logging for device " + current_device)
-
-    command = "show logging"
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-
-    # Write Routing data to spreadsheet 'Logging' tab
+        output = log_cmd_textfsm(connection, net_dev, command, count)
     if isinstance(output, list):
-        for log in output:
-            for message in log["message"]:
-                rw_cell(max_row, 1, True, current_hostname, "Logging")
-                rw_cell(max_row, xls_col_log_date , True, log['month'] + " - " + log['day'], "Logging")
-                rw_cell(max_row, xls_col_log_time, True, log['time'], "Logging")
-                rw_cell(max_row, xls_col_log_timezone, True, log['timezone'], "Logging")
-                rw_cell(max_row, xls_col_log_facility, True, log['facility'], "Logging")
-                rw_cell(max_row, xls_col_log_severity, True, log['severity'], "Logging")
-                rw_cell(max_row, xls_col_log_mnemonic, True, log['mnemonic'], "Logging")
-                rw_cell(max_row, xls_col_log_message, True, message, "Logging")
-                max_row = max_row + 1
-    else:
-        if DEBUG is True:
-            print("No logs found or info could not be parsed for device " + current_device + ".")
-
-    if DEBUG is True:
-        print ("///// ENDING show logging for device " + current_device + "/////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-
-def show_proc_memory(current_device):
-    global json_output
-    if DEBUG is True:
-        print("Starting show processes memory for device " + current_device)
-
-    command = "show processes memory"
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-
-    if DEBUG is True:
-        print("///// ENDING show processes memory for device " + current_device + "/////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-
-def show_proc_cpu(current_device, device_type):
-    # Currently supported only on IOS platforms.  NXOS command for many platforms does not include the 5sec/1min/5min
-    if device_type == "cisco_ios":
-        global json_output
-        if DEBUG is True:
-            print("Starting show processes cpu for device " + current_device)
-
-        command = "show processes cpu"
-        output = conn.send_command(command, use_textfsm=True)
-        string_output = json.dumps(output, indent=2)
-
-        if DEBUG is True:
-            print(string_output)
-
-        if DEBUG is True:
-            print ("///// ENDING show processes cpu for device " + current_device + "/////")
-
-        json_output = json_output + wrap_command(command, string_output)
-
-        if isinstance(output, list):
-            rw_cell(current_row, xls_columns['MAIN_FIVE_SECOND_CPU'], True, output[0]['cpu_1_min'], "Main")
-            rw_cell(current_row, xls_columns['MAIN_ONE_MINUTE_CPU'], True, output[0]['cpu_5_min'], "Main")
-            rw_cell(current_row, xls_columns['MAIN_FIVE_MINUTE_CPU'], True, output[0]['cpu_5_sec'], "Main")
-
-
-def show_ip_bgp(current_device, conn_type):
-    global json_output
-
-    sheet = wb_obj['BGP']
-    max_row = sheet.max_row + 1
-
-    command = "show ip bgp"
-
-    if DEBUG is True:
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-    # Write Routing data to spreadsheet 'Route' tab
-    if isinstance(output, list):
-        for bgps in output:
-            rw_cell(max_row, xls_columns['BGP_HOSTNAME'], True, current_hostname, "BGP")
-            rw_cell(max_row, xls_columns['BGP_STATUS'], True, bgps['status'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_PATH_SELECTION'], True, bgps['path_selection'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_ROUTE_SOURCE'], True, bgps['route_source'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_NETWORK'], True, bgps['network'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_NEXT_HOP'], True, bgps['next_hop'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_METRIC'], True, bgps['metric'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_LOCAL_PREF'], True, bgps['local_pref'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_WEIGHT'], True, bgps['weight'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_AS_PATH'], True, bgps['as_path'], "BGP")
-            rw_cell(max_row, xls_columns['BGP_ORIGIN'], True, bgps['origin'], "BGP")
-            max_row += 1
-
-
-def show_vrf(current_device):
-    global json_output
-    vrf_names = ["global"]
-
-    command = "show vrf"
-
-    if DEBUG is True:
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-    # Write Routing data to spreadsheet 'Route' tab
-    if isinstance(output, list):
-        for vrf in output:
-            vrf_names.append(vrf['name'])
-
-    print(vrf_names)
-    return vrf_names
-
-
-def show_ip_route(current_device, dev_type, vrf_list):
-    global json_output, route_tables_present
-
-    sheet = wb_obj['Routes']
-    max_row = sheet.max_row + 1
-
-    # Write Routing data to spreadsheet 'Route' tab
-    for vrf in vrf_list:
-
-        vrf_string = ""
-        if vrf != "global":
-            vrf_string = " vrf " + vrf
-
-        if vrf == "default" and dev_type == "cisco_nxos":
-            continue
-
-        command = "show ip route" + vrf_string
-
-        if DEBUG is True:
-            print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-        try:
-            output = conn.send_command(command, use_textfsm=True)
-        except:
-            continue
-        string_output = json.dumps(output, indent=2)
-        json_output = json_output + wrap_command(command, string_output)
-
-        if DEBUG is True:
-            print(string_output)
-            print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
-
-        if isinstance(output, list):
-            for route in output:
-                rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
-                rw_cell(max_row, xls_col_routes_vrf, True, vrf, "Routes")
-                rw_cell(max_row, xls_col_routes_protocol, True, route['protocol'], "Routes")
-                rw_cell(max_row, xls_col_routes_route, True, route['network'], "Routes")
-                rw_cell(max_row, xls_col_routes_subnet, True, route['mask'], "Routes")
-                #rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "\\" + route['mask'], "Routes")
-                rw_cell(max_row, xls_col_routes_cidr, True, route['network'] + "/" + route['mask'], "Routes")
-                rw_cell(max_row, xls_col_routes_nexthopip, True, route['nexthop_ip'], "Routes")
-                rw_cell(max_row, xls_col_routes_nexthopif, True, route['nexthop_if'], "Routes")
-                rw_cell(max_row, xls_col_routes_distance, True, route['distance'], "Routes")
-                rw_cell(max_row, xls_col_routes_metric, True, route['metric'], "Routes")
-                rw_cell(max_row, xls_col_routes_uptime, True, route['uptime'], "Routes")
-                max_row = max_row + 1
-
-                route_tables_present = 1
-                continue
-
-        if route_tables_present == 0:
-            default_gateway = re.search("\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", output)
-            rw_cell(max_row, xls_col_routes_hostname, True, current_hostname, "Routes")
-            rw_cell(max_row, xls_col_routes_vrf, True, vrf, "Routes")
-            rw_cell(max_row, xls_col_routes_protocol, True, "Layer 2 only", "Routes")
-
-            if default_gateway is not None:
-                rw_cell(max_row, xls_col_routes_nexthopip, True, default_gateway[0], "Routes")
-
-
-def show_lldp_neighbor(current_device, current_device_type):
-    global json_output
-
-    sheet = wb_obj['LLDP']
-    max_row = sheet.max_row + 1
-    command = "show lldp neighbor detail"
-
-    if DEBUG is True:
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-    output = conn.send_command(command, use_textfsm=True)
-    simple_output = conn.send_command(command)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-        print ("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-    # Write Routing data to spreadsheet 'Route' tab
-    if isinstance(output, list):
-        for lldp in output:
-            rw_cell(max_row, xls_columns['LLDP_HOSTNAME'], True, current_hostname, "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_LOCAL_PORT'], True, lldp['local_interface'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_CHASSIS_ID'], True, lldp['chassis_id'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_REMOTE_HOST'], True, lldp['neighbor'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_SOFTWARE'], True, lldp['system_description'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_REMOTE_DESCRIPTION'], True, lldp['neighbor_interface'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_CAPABILITIES'], True, lldp['capabilities'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_VLAN_ID'], True, lldp['vlan'], "LLDP")
-            rw_cell(max_row, xls_columns['LLDP_REMOTE_PORT'], True, lldp['neighbor_port_id'], "LLDP")
-            if current_device_type =="cisco_ios":
-                rw_cell(max_row, xls_columns['LLDP_MGMT_IP'], True, lldp['management_ip'], "LLDP")
-            if current_device_type == "cisco_nxos":
-                rw_cell(max_row, xls_columns['LLDP_MGMT_IP'], True, lldp['mgmt_address'], "LLDP")
-
-            max_row = max_row + 1
-    else:
-        rw_cell(max_row, xls_col_cdp_hostname, True, current_hostname, "LLDP")
-        rw_cell(max_row, xls_col_cdp_local_port, True, "No LLDP Data", "LLDP")
-
-
-
-def show_cdp_neighbor(current_device, current_device_type):
-    global json_output
-
-    sheet = wb_obj['CDP']
-    max_row = sheet.max_row + 1
-    command = "show cdp neighbor detail"
-
-    if DEBUG is True:
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-    output = conn.send_command(command, use_textfsm=True)
-    simple_output = conn.send_command(command)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-        print ("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
-
-    json_output = json_output + wrap_command(command, string_output)
-
-    # Write Routing data to spreadsheet 'Route' tab
-    if is_json(output):
-        for cdp in output:
-            rw_cell(max_row, xls_col_cdp_hostname, True, current_hostname, "CDP")
-            rw_cell(max_row, xls_col_cdp_local_port, True, cdp['local_port'], "CDP")
-            rw_cell(max_row, xls_col_cdp_remote_port, True, cdp['remote_port'], "CDP")
-            rw_cell(max_row, xls_col_cdp_if_ip, True, cdp['interface_ip'], "CDP")
-            rw_cell(max_row, xls_col_cdp_capabilities, True, cdp['capabilities'], "CDP")
-            if current_device_type =="cisco_ios":
-                rw_cell(max_row, xls_col_cdp_mgmt_ip, True, cdp['management_ip'], "CDP")
-                rw_cell(max_row, xls_col_cdp_remote_host, True, cdp['destination_host'], "CDP")
-                rw_cell(max_row, xls_col_cdp_software, True, cdp['software_version'], "CDP")
-            if current_device_type == "cisco_nxos":
-                rw_cell(max_row, xls_col_cdp_mgmt_ip, True, cdp['mgmt_ip'], "CDP")
-                rw_cell(max_row, xls_col_cdp_remote_host, True, cdp['dest_host'], "CDP")
-                rw_cell(max_row, xls_col_cdp_software, True, cdp['version'], "CDP")
-            rw_cell(max_row, xls_col_cdp_platform, True, cdp['platform'], "CDP")
-
-            max_row = max_row + 1
-    else:
-        rw_cell(max_row, xls_col_cdp_hostname, True, current_hostname, "CDP")
-        rw_cell(max_row, xls_col_cdp_local_port, True, "No CDP Data", "CDP")
-
-
-def show_interfaces(current_device, current_device_type):
-    global json_output
-
-    sheet = wb_obj['Interfaces']
-    max_row = sheet.max_row + 1
+        net_dev.show_for_xls["gather_mac"] = output.copy()
+    elif isinstance(output, str):
+        output = {}
+        output["type"] = "No MAC Address Table results found for device"
+        net_dev.show_for_xls["gather_mac"] = [output]
+
+
+## XR Ready, Need to test more
+def gather_interface(connection, net_dev, count):
+    """
+    Gather Interface information, the function was modified from the
+    original script.
+    """
+    ####This is from old
     command = "show interface"
     command2 = "show interface status"
+    log_cmd_textfsm(connection, net_dev, command, count)
+    log_cmd_textfsm(connection, net_dev, command2, count)
     trunks = {}
-    vrf_info = get_vrf_interfaces_dict(current_device, current_device_type)
+    vrf_info = get_vrf_interfaces_dict(net_dev, connection, count)
 
-    if DEBUG is True:
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
-
-    if DEBUG is True:
-        print(string_output)
-        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
-
-    output2 = conn.send_command(command2, use_textfsm=True)
-    string_output2 = json.dumps(output2, indent=2)
-
-    if DEBUG is True:
-        print(string_output2)
-        print("///// ENDING gathering JSON data for '" + command2 + "' on " + current_device + "./////")
-
-    json_output = json_output + wrap_command(command, string_output)
-    json_output = json_output + wrap_command(command2, string_output2)
-
+    output = net_dev.show_output_json[command].copy()
+    output2 = net_dev.show_output_json[command2]
+    dev_type = net_dev.parse_method
     switchport_data_found = False
     if isinstance(output2, list):
         switchport_data_found = True
         # If device is a switch, get trunk info into dictionary.
-        trunks = get_trunk_dict(current_device_type)
+        #log_cmd_textfsm(connection, net_dev, "show int trunk", count)
+        trunks = get_trunk_dict(net_dev, connection)
 
     # Write Interface data to spreadsheet 'Interfaces' tab
     if isinstance(output, list):
         for i in output:
-            short_if_name = get_short_if_name(i['interface'], current_device_type)
-            rw_cell(max_row, xls_col_if_hostname, True, current_hostname, "Interfaces")
-            rw_cell(max_row, xls_col_if_short_if, True, short_if_name, "Interfaces")
-            rw_cell(max_row, xls_col_if_interface, True, i['interface'], "Interfaces")
-            rw_cell(max_row, xls_col_if_link_status, True, i['link_status'], "Interfaces")
-            if current_device_type == "cisco_ios":
-                rw_cell(max_row, xls_col_if_protocol_status, True, i['protocol_status'], "Interfaces")
-            if current_device_type == "cisco_nxos":
-                rw_cell(max_row, xls_col_if_protocol_status, True, i['admin_state'], "Interfaces")
+            short_if_name = get_short_if_name(i['interface'], dev_type)
+            i["short_if"] = short_if_name
             if i['ip_address'] != "":
-                rw_cell(max_row, xls_col_if_l2_l3, True, "Layer 3", "Interfaces")
-                rw_cell(max_row, xls_columns['INTERFACES_TRUNK_ACCESS'], True, "Routed", "Interfaces")
+                i['l2_l3'] = "Layer 3"
+                i['trunk_access'] = "Routed"
                 if isinstance(vrf_info, list):
                     vrf_name = ""
                     for vrf in vrf_info:
-                        if short_if_name.lower() == vrf['interface'].lower():
-                            vrf_name = vrf['name']
-                            rw_cell(max_row, xls_columns['INTERFACES_VRF'], True, vrf_name, "Interfaces")
-                    if vrf_name == "":
-                        rw_cell(max_row, xls_columns['INTERFACES_VRF'], True, "global", "Interfaces")
+                        for intf in vrf["interfaces"]:
+                            t_intf = get_short_if_name(intf, dev_type).lower()
+                            if short_if_name.lower() == t_intf:
+                                vrf_name = vrf["name"]
+                                i['vrf'] = vrf_name
+                    if vrf_name == "" and dev_type != "cisco_xr":
+                        i['vrf'] = "default"
+                    elif vrf_name == "":
+                        i['vrf'] = "global"
                 else:
-                    rw_cell(max_row, xls_columns['INTERFACES_VRF'], True, "global", "Interfaces")
-            rw_cell(max_row, xls_col_if_mac_address, True, i['address'], "Interfaces")
-            rw_cell(max_row, xls_col_if_ip_address, True, i['ip_address'], "Interfaces")
-            rw_cell(max_row, xls_col_if_desc, True, i['description'], "Interfaces")
-            rw_cell(max_row, xls_col_if_mtu, True, i['mtu'], "Interfaces")
-            rw_cell(max_row, xls_col_if_duplex, True, i['duplex'], "Interfaces")
-            rw_cell(max_row, xls_col_if_speed, True, i['speed'], "Interfaces")
-            rw_cell(max_row, xls_col_if_bw, True, i['bandwidth'], "Interfaces")
-            rw_cell(max_row, xls_col_if_delay, True, i['delay'], "Interfaces")
-            rw_cell(max_row, xls_col_if_encapsulation, True, i['encapsulation'], "Interfaces")
-            rw_cell(max_row, xls_col_if_in_pkts, True, i['input_packets'], "Interfaces")
-            rw_cell(max_row, xls_col_if_out_pkts, True, i['output_packets'], "Interfaces")
-            rw_cell(max_row, xls_col_if_in_err, True, i['input_errors'], "Interfaces")
-            rw_cell(max_row, xls_col_if_out_err, True, i['output_errors'], "Interfaces")
-            if current_device_type == "cisco_ios":
-                rw_cell(max_row, xls_col_if_last_in, True, i['last_input'], "Interfaces")
-                rw_cell(max_row, xls_col_if_last_out, True, i['last_output'], "Interfaces")
-                rw_cell(max_row, xls_col_if_queue, True, i['queue_strategy'], "Interfaces")
-                rw_cell(max_row, xls_col_if_in_rate, True, i['input_rate'], "Interfaces")
-                rw_cell(max_row, xls_col_if_out_rate, True, i['output_rate'], "Interfaces")
+                    i['vrf'] = "global"
             if switchport_data_found is True:
                 for x in output2:
                     if short_if_name.lower() == x['port'].lower():
                         if x['vlan'].isnumeric():
-                            rw_cell(max_row, xls_col_if_access_vlan, True, x['vlan'], "Interfaces")
-                            rw_cell(max_row, xls_col_if_trunk_access, True, "Access", "Interfaces")
-                            rw_cell(max_row, xls_col_if_l2_l3, True, "Layer 2", "Interfaces")
+                            i["vlan"] = x['vlan']
+                            i["vlan"] = x['vlan']
+                            i["trunk_access"] = "Access"
+                            i["l2_l3"] = "Layer 2"
                         elif x['vlan'] == "trunk":
-                            rw_cell(max_row, xls_col_if_l2_l3, True, "Layer 2", "Interfaces")
-                            rw_cell(max_row, xls_col_if_trunk_access, True, "Trunk", "Interfaces")
-                            try:
-                                native = get_trunk_details(short_if_name, trunks, "vlans_native",
-                                                               current_device_type)
-                                allowed = get_trunk_details(short_if_name, trunks, "vlans_allowed",
-                                                               current_device_type)
-                                not_pruned = get_trunk_details(short_if_name, trunks, "vlans_not_pruned",
-                                                               current_device_type)
+                            i["l2_l3"] = "Layer 2"
+                            i["trunk_access"] = "Trunk"
+                            # Parse Trunk Details
+                            native = get_trunk_details(short_if_name,
+                                                       trunks,
+                                                       "vlans_native",
+                                                       net_dev)
+                            allowed = get_trunk_details(short_if_name,
+                                                        trunks,
+                                                        "vlans_allowed",
+                                                        net_dev)
+                            not_pruned = get_trunk_details(short_if_name,
+                                                           trunks,
+                                                           "vlans_not_pruned",
+                                                           net_dev)
+                            i["native"] = native
+                            i["allowed"] = allowed
+                            i["not_pruned"] = not_pruned
 
-                                # trunk_info = get_trunk_info(short_if_name, current_device_type)
-                                rw_cell(max_row, xls_col_if_trunk_native, True, native, "Interfaces")
-                                rw_cell(max_row, xls_col_if_trunk_allowed, True, allowed, "Interfaces")
-                                rw_cell(max_row, xls_col_if_trunk_forwarding, True, not_pruned, "Interfaces")
-                            except:
-                                write_error(current_hostname, "Error getting trunk info from device")
                         elif x['vlan'] == "routed":
-                            rw_cell(max_row, xls_col_if_trunk_access, True, "Routed", "Interfaces")
-            max_row = max_row + 1
-
-    # Count interfaces by type and number of active interfaces
-    interface_counts = count_if_details(output)
-    for i in interface_counts:
-        if i['type'] == "Ethernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_eth_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_eth_if_active, True, i['active'], "Main")
-        elif i['type'] == "FastEthernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_fe_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_fe_if_active, True, i['active'], "Main")
-        elif i['type'] == "GigabitEthernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_ge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_ge_if_active, True, i['active'], "Main")
-        elif i['type'] == "TenGigEthernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_te_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_te_if_active, True, i['active'], "Main")
-        elif i['type'] == "TwentyFiveGigEthernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_tfge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_tfge_if_active, True, i['active'], "Main")
-        elif i['type'] == "FortyGigEthernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_fge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_fge_if_active, True, i['active'], "Main")
-        elif i['type'] == "HundredGigEthernet":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_hunge_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_hunge_if_active, True, i['active'], "Main")
-        elif i['type'] == "Serial":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_serial_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_serial_if_active, True, i['active'], "Main")
-        elif i['type'] == "Subinterfaces":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_subif, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_subif_active, True, i['active'], "Main")
-        elif i['type'] == "Tunnel":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_tunnel_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_tunnel_if_active, True, i['active'], "Main")
-        elif i['type'] == "Port-channel":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_port_chl_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_port_chl_if_active, True, i['active'], "Main")
-        elif i['type'] == "Loopback":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_loop_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_loop_if_active, True, i['active'], "Main")
-        elif i['type'] == "VLAN":
-            if i['count'] > 0:
-                rw_cell(current_row, xls_col_main_vlan_if, True, i['count'], "Main")
-                rw_cell(current_row, xls_col_main_vlan_if_active, True, i['active'], "Main")
+                            i["trunk_access"] = "Routed"
+        net_dev.show_for_xls["gather_interface"] = output
+        net_dev.interface_count = count_interfaces(net_dev.show_output_json["show interface"])
+    elif isinstance(output, str):
+        output = {}
+        output["status"] = "No Interface Data, have Developer check the script"
+        net_dev.show_for_xls["gather_interface"] = [output]
 
 
-def get_vrf_interfaces_dict(current_device, current_device_type):
-    # This function will parse VRF information to get interface and VRF info.
-    global json_output
-    vrfs = {}
-    command = ""
+## XR Ready, need to test
+def gather_cdp(connection, net_dev, count):
+    command = "show cdp neighbor detail"
+    command2 = "show cdp neighbor"
+    output = log_cmd_textfsm(connection, net_dev, command, count)
+    output2 = log_cmd_textfsm(connection, net_dev, command2, count)
+    if len(output) != len(output2):
+        if VERBOSE:
+            print_net_dev_msg(net_dev, "The output of the length of show cdp neigh and thelength of show cdp neighbor details is not the same, please manually gather raw command of both commands")
+        net_dev.add_error_msg("The output of the length of show cdp neigh and the length of show cdp neighbor details is not the same, please manually gather raw command of both commands")
+    if isinstance(output, list):
+        net_dev.show_for_xls["gather_cdp"] = output.copy()
+    elif isinstance(output, str):
+        output = {}
+        output["local_port"] = "No CDP Data"
+        net_dev.show_for_xls["gather_cdp"] = [output]
 
-    # Send different commands depending on platform
-    if current_device_type == "cisco_ios":
-        command = "show vrf"
-    elif current_device_type == "cisco_nxos":
-        command = "show vrf interface"
 
-    if DEBUG is True:
-        print("Starting gathering JSON data for '" + command + "' on " + current_device + ".")
+## XR Ready, need to test
+def gather_lldp(connection, net_dev, count):
+    command = "show lldp neighbor detail"
+    txt_tmpl = None
+    if net_dev.parse_method == "cisco_xr":
+        txt_tmpl = "ntc-templates/test_tmpl/cisco_xr_show_lldp_neighbors_detail.textfsm"
+        txt_tmpl = mod_dir_based_on_os(txt_tmpl)
+    if net_dev.parse_method == "extreme_exos":
+        txt_tmpl = (r"ntc-templates\test_tmpl\extreme_exos_show_lldp_neighbors_detail.textfsm")
+    output = log_cmd_textfsm(connection, net_dev, command, count, txt_tmpl)
+    if isinstance(output, list):
+        net_dev.show_for_xls["gather_lldp"] = output.copy()
+    elif isinstance(output, str):
+        output = {}
+        output["chassis_id"] = "No LLDP Data"
+        net_dev.show_for_xls["gather_lldp"] = [output]
 
-    output = conn.send_command(command, use_textfsm=True)
-    string_output = json.dumps(output, indent=2)
 
-    if DEBUG is True:
-        print(string_output)
-        print("///// ENDING gathering JSON data for '" + command + "' on " + current_device + "./////")
+## XR Ready, need to test
+def gather_route(connection, net_dev, count):
+    vrf_list = get_vrf_names(net_dev, connection, count)
+    route_list = []
+    route_table_present = False
+    for vrf in vrf_list:
+        vrf_string = ""
+        if vrf != "global":
+            vrf_string = " vrf " + vrf
+        command = "show route" + vrf_string
+        output = log_cmd_textfsm(connection, net_dev, command, count)
+        if isinstance(output, list):
+            for route in output:
+                route["cidr"] = route['network'] + "/" + route['mask']
+                if "vrf" not in list(route.keys()):
+                    route["vrf"] = vrf
+                route_list.append(route)
+                route_table_present = True
+        if not route_table_present:
+            route = {}
+            default_gateway = re.search(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", output)
+            route["vrf"] = vrf
+            route["protocol"] = "Layer 2 only"
+            if default_gateway:
+                route["nexthop_ip"] = default_gateway[0]
+            else:
+                output2 = connection.send_command("show run | incl default-gateway")
+                default_gateway = re.search(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", output2)
+                if default_gateway:
+                    route["nexthop_ip"] = default_gateway[0]
+            route_list.append(route)
+    net_dev.show_for_xls["gather_route"] = route_list
 
-    json_output = json_output + wrap_command(command, string_output)
 
-    if isinstance(output, str):
-        if output != "":
-            output = output.split("\n")
-            output2 = []
-            previous_name = ""
-            default_rd = ""
-            protocols = ""
-            vrf = re.compile(r"^\s+(\S+)\s+((\d+|\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}):\d+|<not set>)\s+(\S+)\s+(\S+\d+)$")
-
-            for line in output:
-                if left(line, 4) != "Name":
-
-                    if left(line, 3) == "   ":
-                        output = line.split()
-                        output2.append({'interface': output[0],
-                                        'name': previous_name,
-                                        'default_rd': default_rd,
-                                        'protocols': protocols,
-                                        })
-                    else:
-                        previous_name = vrf.search(line).group(1)
-                        default_rd = vrf.search(line).group(2)
-                        protocols = vrf.search(line).group(4)
-                        output2.append({'interface': vrf.search(line).group(5),
-                                        'name': previous_name,
-                                        'default_rd': default_rd,
-                                        'protocols': protocols
-                                        })
-            return output2
+## XR Ready, Need to test more
+def gather_bgp(connection, net_dev, count):
+    command = "show ip bgp"
+    if net_dev.parse_method == "cisco_xr":
+        vrf_names = get_vrf_names(net_dev, connection, count)
+        output = []
+        txt_fsm = "ntc-templates/test_tmpl/cisco_xr_show_bgp_vrf.textfsm"
+        for vrf in vrf_names:
+            command = "show bgp vrf {} ipv4 unicast".format(vrf)
+            if isinstance(output, list):
+                output += log_cmd_textfsm(connection, net_dev, command, count, txt_fsm)
+            else:
+                output["vrf"] = vrf
+                output["status"] = "No BGP Data"
+                net_dev.show_for_xls["gather_bgp"] = [output]
     else:
-        return output
+        output = log_cmd_textfsm(connection, net_dev, command, count)
+    if isinstance(output, list):
+        net_dev.show_for_xls["gather_bgp"] = output
+    elif isinstance(output, str):
+        output = {}
+        output["status"] = "No BGP Data"
+        net_dev.show_for_xls["gather_bgp"] = [output]
 
 
-def get_trunk_details(if_name, trunk_dict, key_value, current_device_type):
-    for x in trunk_dict[key_value]:
-        interface, value = "", ""
-        if key_value != "vlans_native":
-            interface = x.split()[0]
-            value = x.split()[1]
+## XR Ready
+def gather_inventory(connection, net_dev, count):
+    command = "show inventory"
+    txt_tmpl = None
+    if net_dev.parse_method == "cisco_xr":
+        txt_tmpl = "ntc-templates/templates/cisco_ios_show_inventory.textfsm"
+        txt_tmpl = mod_dir_based_on_os(txt_tmpl)
+    output = log_cmd_textfsm(connection, net_dev, command, count, txt_tmpl)
+    if isinstance(output, list):
+        net_dev.show_for_xls["gather_inventory"] = output.copy()
+        update_sfp_cout(net_dev, output)
+    elif isinstance(output, str):
+        output = {}
+        output["status"] = "Issue, have Developer check the script"
+        net_dev.show_for_xls["gather_inventory"] = [output]
+
+
+def update_sfp_cout(net_dev, inventory_list):
+    sfp_count = 0
+    for item in inventory_list:
+        if "sfp" in item["descr"].lower():
+            sfp_count +=1
+    net_dev.sfp_count=sfp_count
+
+
+## XR Ready
+def gather_commands(connection, net_dev, other_shows, count=0):
+    """
+    Logs the other show commands requested by the user, in "Commands" sheet
+    """
+    for command in other_shows:
+        if VERBOSE:
+            print_net_dev_msg(net_dev, "Capturing '{}' as raw text".format(command))
+        output = connection.send_command(command)
+        net_dev.user_rqstd_show[command] = output
+
+
+####Initial Setup Fucntions
+def read_settings_sheet(ws_obj, start_row=5,end_row=15):
+    """
+    Read all the Settings from the Settings sheet and generate the appropriate Dictionary.
+    """
+    t_dict={}
+    for i in range(start_row, end_row+1):
+        prompt = rw_cell(ws_obj, i, 1).lower()
+        t_dict[prompt] = rw_cell(ws_obj, i, 3)
+        if isinstance(t_dict[prompt], int):
+            continue
+        elif t_dict[prompt] in ["Yes", "YES", "yes"]:
+            t_dict[prompt] = True
         else:
-            if current_device_type == "cisco_ios":
-                interface = x.split()[0]
-                value = x.split()[4]
-            elif current_device_type == "cisco_nxos":
-                interface = x.split()[0]
-                value = x.split()[1]
+            t_dict[prompt] = False
+    return t_dict
 
-        if if_name.lower() == interface.lower():
-            return value
+def read_global_variables(ws_obj):
+    t_dict = {}
+    t_dict["username"] = rw_cell(ws_obj, 1, 2)
+    t_dict["password"] = rw_cell(ws_obj, 2, 2)
+    t_dict["secret"] = rw_cell(ws_obj, 3, 2)
+    if not t_dict["secret"]:
+        t_dict["secret"] = t_dict["password"]
+    t_dict["output_dir"] = verify_path(rw_cell(ws_obj, 4, 2))
+    t_dict["output_file"] = rw_cell(ws_obj, 5, 2)
+    if t_dict["output_file"]:
+        t_dict["output_file"] = add_xls_tag(t_dict["output_file"])
+    else:
+        print("Error:\tNo Output file value was entered.")
+        print("\tPlease enter an output file name and try again.")
+        sys.exit()
+    return t_dict
 
+def cell_iter_to_list(cell_iter, ignore_empty_cell):
+    t_list=[]
+    for cell in cell_iter:
+        if not ignore_empty_cell:
+            t_list.append(cell.value)
+        elif cell.value:
+            t_list.append(cell.value)
+    return t_list
 
-def count_if_details(if_dictionary):
-    eth_if, eth_if_active, fast_if, fast_if_active, gig_if, gig_if_active, serial_if = 0, 0, 0, 0, 0, 0, 0
-    serial_if_active, ten_if, ten_if_active, tfg_if, tfg_if_active, forty_if = 0, 0, 0, 0, 0, 0
-    forty_if_active, hundred_if, hundred_if_active, subinterface, subinterface_active = 0, 0, 0, 0, 0
-    tunnel_if, tunnel_if_active, port_channel_if, port_channel_if_active = 0, 0, 0, 0
-    loopback_if, loopback_if_active , vlan_if, vlan_if_active = 0, 0, 0, 0
+def update_with_cli_args(glbl_var, cli_arg):
+    for key, val in cli_arg.items():
+        if key in list(glbl_var.keys()) and val:
+            if key =="output_dir":
+                glbl_var[key] = verify_path(val)
+            else:
+                glbl_var[key] = val
 
-    for i in if_dictionary:
-        split_if = i['interface'].split(".")
-        if len(split_if) == 1:
-            if left(i['interface'], 3).lower() == "eth":
-                eth_if = eth_if + 1
-                if i['link_status'] == "up":
-                    eth_if_active = eth_if_active + 1
-            elif left(i['interface'], 3).lower() == "fas":
-                fast_if = fast_if + 1
-                if i['link_status'] == "up":
-                    fast_if_active = fast_if_active + 1
-            elif left(i['interface'], 3).lower() == "gig":
-                gig_if = gig_if + 1
-                if i['link_status'] == "up":
-                    gig_if_active = gig_if_active + 1
-            elif left(i['interface'], 3).lower() == "ten":
-                ten_if = ten_if + 1
-                if i['link_status'] == "up":
-                    ten_if_active = ten_if_active + 1
-            elif left(i['interface'], 3).lower() == "twe":
-                tfg_if = tfg_if + 1
-                if i['link_status'] == "up":
-                    tfg_if_active = tfg_if_active + 1
-            elif left(i['interface'], 3).lower() == "for":
-                forty_if = forty_if + 1
-                if i['link_status'] == "up":
-                    forty_if_active = forty_if_active + 1
-            elif left(i['interface'], 3).lower() == "hun":
-                hundred_if = hundred_if + 1
-                if i['link_status'] == "up":
-                    hundred_if_active = hundred_if_active + 1
-            elif left(i['interface'], 6).lower() == "serial":
-                serial_if = serial_if + 1
-                if i['link_status'] == "up":
-                    serial_if_active = serial_if_active + 1
-            elif left(i['interface'], 3).lower() == "tun":
-                tunnel_if = tunnel_if + 1
-                if i['link_status'] == "up":
-                    tunnel_if_active = tunnel_if_active + 1
-            elif left(i['interface'], 5).lower() == "port-":
-                port_channel_if = port_channel_if + 1
-                if i['link_status'] == "up":
-                    port_channel_if_active = port_channel_if_active + 1
-            elif left(i['interface'], 3).lower() == "loo":
-                loopback_if = loopback_if + 1
-                if i['link_status'] == "up":
-                    loopback_if_active = loopback_if_active + 1
-            elif left(i['interface'], 3).lower() == "vla":
-                vlan_if = vlan_if + 1
-                if i['link_status'] == "up":
-                    vlan_if_active = vlan_if_active + 1
-        elif len(split_if) == 2:
-            subinterface = subinterface + 1
-            if i['link_status'] == "up":
-                subinterface_active = subinterface_active + 1
-
-    str_return = [{"type": "Ethernet", "count": eth_if, "active": eth_if_active},
-                  {"type": "FastEthernet", "count": fast_if, "active": fast_if_active},
-                  {"type": "GigabitEthernet", "count": gig_if, "active": gig_if_active},
-                  {"type": "TenGigEthernet", "count": ten_if, "active": ten_if_active},
-                  {"type": "TwentyFiveGigEthernet", "count": tfg_if, "active": tfg_if_active},
-                  {"type": "FortyGigEthernet", "count": forty_if, "active": forty_if_active},
-                  {"type": "HundredGigEthernet", "count": hundred_if, "active": hundred_if_active},
-                  {"type": "Serial", "count": serial_if, "active": serial_if_active},
-                  {"type": "Subinterfaces", "count": subinterface, "active": subinterface_active},
-                  {"type": "Tunnel", "count": tunnel_if, "active": tunnel_if_active},
-                  {"type": "Port-channel", "count": port_channel_if, "active": port_channel_if_active},
-                  {"type": "Loopback", "count": loopback_if, "active": loopback_if_active},
-                  {"type": "VLAN", "count": vlan_if, "active": vlan_if_active}
-                  ]
-
-    return str_return
+def get_setup_vars(wb_obj, cli_arg):
+    """
+    Reads all the setup variables from the XLS document.
+    """
+    return_dict = {}
+    t_list = []
+    t_dict = {}
+    # Gathers the Commands to capture
+    return_dict["other_commands"] = cell_iter_to_list(wb_obj["Commands"]["A"], True)
+    # Gathers the Settings, on which functions to do.
+    return_dict["settings"] = read_settings_sheet(wb_obj["Settings"])
+    # Adds all the global parameters
+    t_glbl_dict =read_global_variables(wb_obj["Main"])
+    ##Update override with any CLI Arguments
+    update_with_cli_args(t_glbl_dict, cli_arg)
+    return_dict["global"] = t_glbl_dict
+    return return_dict
 
 
-def get_trunk_dict(current_device_type):
+def read_network_devices(wb_obj, dflt_creds):
+    """
+        Takes WB and checks the Main to create NetworkDevices and return
+        a list of Network_Devices
+    """
+    sheet_obj = get_xls_sheet(wb_obj, "Main")
+    return_list = []
+        # Read all the devices
+    for i in range(8, sheet_obj.max_row + 1):
+        host = rw_cell(sheet_obj, i, 1)
+        if host:
+            active = rw_cell(sheet_obj, i, 2)
+            if not active:
+                active = "Yes"
+            parse_method = rw_cell(sheet_obj, i, 3)
+            if not parse_method:
+                parse_method = "autodetect"
+            protocol = rw_cell(sheet_obj, i, 4)
+            port_override = rw_cell(sheet_obj, i, 5)
+            user_name = rw_cell(sheet_obj, i, 6)
+            user_pass = rw_cell(sheet_obj, i, 7)
+            # If no creds were entered then use the default global creds
+            if not user_name:
+                user_name = dflt_creds["username"]
+            if not user_pass:
+                user_pass = dflt_creds["password"]
+            net_device = NetworkDevice(host,
+                                       user_name,
+                                       user_pass,
+                                       dflt_creds["secret"],
+                                       parse_method,
+                                       protocol,
+                                       port_override,
+                                       active
+                                       )
+            net_device.main_col = i
+            return_list.append(net_device)
+    return return_list
 
-    trunk_all_info = conn.send_command("show int trunk").split('\n')
+
+def update_ntc_templ_path():
+    """
+    Adds 'NET_TEXTFSM' variable to the os.environ, required to utilize
+    textfsm with Netmiko.
+    """
+    ntc_dir = "ntc-templates/templates"
+    os.environ["NET_TEXTFSM"] = str(Path(os.getcwd())/Path(ntc_dir))
+
+
+def get_other_shows(wb_obj):
+    """
+    Obtains the "show " commands from the WB, returns dict with Commands
+    as keys and None for values.
+    """
+    wb_sheet = get_xls_sheet(wb_obj, "Commands")
+    return_dict = {}
+    for cell in wb_sheet["A"]:
+        if cell.value:
+            return_dict[(cell.value)] = None
+    return return_dict
+
+
+def get_json_data_from_file(file_name):
+    """
+    Reads a json file and imports all the values.
+    """
+    with open(file_name) as file:
+        return_value = json.load(file)
+    return return_value
+
+
+"""###Connection and logging of the devices###"""
+
+
+def connect_devices(net_devices, setup_vars):
+    """
+    Connects to devices and calls all the functions that log all the data.
+    """
+    thread_list = []
+    max_threads = setup_vars["settings"]["max_threads"]
+    for n, device in enumerate(net_devices):
+        thread_list.append(Thread(target=con_thread, args=(device, setup_vars, n)))
+        if len(thread_list) == max_threads or n == len(net_devices) - 1:
+            for thread in thread_list:
+                thread.start()
+            for thread in thread_list:
+                thread.join()
+            thread_list = []
+
+
+def con_thread(net_dev, setup_vars, n):
+    """
+    Function that contains all the functions to be Completed while
+    multithreading, all the functions that gather data fromt the device.
+    """
+    other_shows = setup_vars["other_commands"]
+    settings = setup_vars["settings"]
+    if net_dev.active == "Yes":
+        net_dev.collection_time = get_current_time()
+        start_time = time.time()
+        conn = connect_single_device(net_dev, n)
+        # Add any command function captures here
+        if conn != None:
+            # Start CLI Log if True
+            if RAW_CLI_OUTPUT:
+                start_connection_log(conn, net_dev, setup_vars["global"]["output_dir"])
+            # Sections are executed based on Settings
+            if settings["gather_version"]:
+                try:
+                    gather_version(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Version", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_arp"]:
+                try:
+                    gather_arp(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather ARP", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_mac"]:
+                try:
+                    gather_mac(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather MAC", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_interface"]:
+                try:
+                    gather_interface(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Interface", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_cdp"]:
+                try:
+                    gather_cdp(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather CDP", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_lldp"]:
+                try:
+                    gather_lldp(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather LLDP", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_route"]:
+                try:
+                    gather_route(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Route", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_bgp"]:
+                try:
+                    gather_bgp(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather BGP", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_inventory"]:
+                try:
+                    gather_inventory(conn, net_dev, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Inventory", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            if settings["gather_commands"]:
+                try:
+                    gather_commands(conn, net_dev, other_shows, n)
+                except Exception as e:
+                    if VERBOSE:
+                        print(60*"*"+"\n",net_dev.host, "| Issue with Gather Commands", "\n"+60*"*")
+                    net_dev.add_detected_error(e)
+            net_dev.active = "Completed"
+        else:
+            net_dev.active = "Error"
+            if VERBOSE:
+                print(22*"*", "Connection Error", 21*"*")
+                print_net_dev_msg(net_dev,"Unable to establish a connection")
+                print(60*"*")
+        net_dev.elapsed_time = int(time.time() - start_time)
+
+
+def start_connection_log(conn, net_dev, log_path):
+    """Starts logging in Append Mode"""
+    log_path = Path(log_path)
+    log_path = (log_path/"raw_cli"/(net_dev.host+"_raw_cli.log"))
+    conn.open_session_log(str(log_path), "append")
+    if VERBOSE:
+        print_net_dev_msg(net_dev,"Session Logging has been enabled")
+
+def connect_single_device(net_dev, count):
+    """
+    Attempts to Connect to Device.
+    Returns False if failed to connect otherwise it will return
+    ConnectionHandler variable. Will also submit "term len 0 " command.
+    """
+    try:
+        if VERBOSE:
+            print_net_dev_msg(net_dev,"Starting Connection")
+        conn = netmiko.ConnectHandler(**net_dev.connection)
+        conn.enable()
+        if net_dev.parse_method == "extreme_exos":
+            conn.send_command("dis clip")
+        else:
+            conn.send_command("term len 0")
+        get_hostname(conn, net_dev)
+        if VERBOSE:
+            print_net_dev_msg(net_dev, "Hostname is: {}".format( str(net_dev.hostname)))
+        return conn
+    except Exception as e:
+        net_dev.conn_error_detected(e)
+        return None
+
+
+###Get and Parse data functions
+def log_cmd_textfsm(connection, net_dev, command, count, txtfsm_tmpl=None):
+    """
+    Logs the Command with the textfsm option enabled, it also uses
+    a template if needed. Also adds the output to the NetworkDevice
+    show_output_json variable
+    """
+    if VERBOSE:
+        print_net_dev_msg(net_dev, "Capturing '{}' with TextFSM Enabled".format(command))
+    if txtfsm_tmpl:
+        mod_dir_based_on_os(txtfsm_tmpl)
+    output = connection.send_command(command, use_textfsm=True, textfsm_template=txtfsm_tmpl)
+    if isinstance(output, list):
+        net_dev.show_output_json[command] = output.copy()
+    else:
+        net_dev.show_output_json[command] = output
+    return output
+
+
+def show_proc_cpu(connection, net_dev, count):
+    """
+    Sends Commands "show processes cpu" and logs to variables of
+    the NetworkDevice.
+    """
+    dev_type = net_dev.parse_method
+    command = "show processes cpu"
+    output = log_cmd_textfsm(connection, net_dev, command, count)
+    try:
+        if dev_type in ["cisco_ios", "cisco_nxos"]:
+            net_dev.cpu_5_sec = output[0]['cpu_5_sec']
+            net_dev.cpu_1_min = output[0]['cpu_1_min']
+            net_dev.cpu_5_min = output[0]['cpu_5_min']
+        elif dev_type == "cisco_xr":
+            net_dev.cpu_1_min = output[0]['cpu_1_min']
+            net_dev.cpu_5_min = output[0]['cpu_5_min']
+            net_dev.cpu_15_min = output[0]['cpu_15_min']
+    except Exception as e:
+        net_dev.add_detected_error(e)
+
+
+def get_vrf_names(net_dev, connection, count):
+    """
+    Gathers the VRF names from the connection. If the names were already
+    gathered then it returns the list from the NetworkDevice variable of
+    vrf_names.
+    """
+    try:
+        vrf_names = net_dev.vrf_names
+    except AttributeError:
+        vrf_names = ["global"]
+        txt_tmpl = None
+        command = "show vrf"
+        if net_dev.parse_method == "cisco_xr":
+            vrf_names = ["default"]
+            command += " all"
+            txt_tmpl = "ntc-templates/test_tmpl/cisco_xr_show_vrf_all.textfsm"
+            txt_tmpl = mod_dir_based_on_os(txt_tmpl)
+        output = log_cmd_textfsm(connection, net_dev, command, count, txt_tmpl)
+
+        if VERBOSE:
+            print_net_dev_msg(net_dev, "Parsing vrfs")
+        if isinstance(output, list):
+            for vrf in output:
+                if vrf['name'] not in vrf_names:
+                    vrf_names.append(vrf['name'])
+        elif isinstance(output, str):
+            net_dev.add_error_msg("Issue with the Gather VRF Names, seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string.")
+        net_dev.vrf_names = vrf_names
+    return vrf_names
+
+
+def get_xr_locations(net_dev, connection, count):
+    """
+    Gathers the locations
+     names from the connection. If the names were already
+    gathered then it returns the list from the NetworkDevice variable of
+    vrf_names.
+    """
+    try:
+        return net_dev.xr_locations
+    except AttributeError:
+        if VERBOSE:
+            print_net_dev_msg(net_dev,"Parsing XR Device Locations")
+        command = "show l2vpn forwarding bridge-domain : mac-address location ?"
+        output = connection.send_command(command)
+        connection.send_command("")
+        net_dev.xr_locations = parse_locations_frm_prmpt(output)
+        return net_dev.xr_locations
+
+
+def get_xr_bg_grp_dmns(net_dev, connection, count):
+    """
+    Gathers the Bridge group and domain and returns them with a colon
+    """
+    try:
+        bg_grp_dmns = net_dev.bg_grp_dmns
+    except AttributeError:
+        if VERBOSE:
+            print_net_dev_msg(net_dev,"Parsing BGP Group and Domain")
+        net_dev.bg_grp_dmns = []
+        command = "show l2vpn bridge-domain"
+        txt_tmpl = "ntc-templates/test_tmpl/cisco_xr_show_l2vpn_forwarding_bridge_info.textfsm"
+        output = log_cmd_textfsm(connection, net_dev, command, count, txt_tmpl)
+        if isinstance(output, list):
+            for i in output:
+                net_dev.bg_grp_dmns.append("{}:{}".format(i["bridge_group"], i["bridge_domain"]))
+    return net_dev.bg_grp_dmns
+
+
+def get_trunk_dict(device, connection):
+    """
+    Parses the 'show int trunk' response, only works on cisco_ios and cisco_nxos
+    """
+    trunk_all_info = connection.send_command("show int trunk").split('\n')
     vlans_native_list, vlans_allowed_list, vlans_forwarding_list = [], [], []
     vlans_not_pruned_list, vlans_err_disabled_list = [], []
     x = 0
 
-    if current_device_type == "cisco_ios":
+    if device.parse_method == "cisco_ios":
         for line in trunk_all_info:
-            if line != "":
-                if line != " ":
-                    if line != "\n":
-                        if x == 0:
-                            # Find the first reference to the word 'port' which will house native vlan data.
-                            first_word = line.split(" ")[0]
-                            if first_word.lower() == "port":
-                                x = x + 1
-                        elif x == 1:
-                            first_word = line.split(" ")[0]
-                            if first_word.lower() == "port":
-                                x = x + 1
-                            # Add lines to native_vlan_list:
-                            else:
-                                vlans_native_list.append(line)
-                        elif x == 2:
-                            first_word = line.split(" ")[0]
-                            # Increment counter when word 'Port' is found again
-                            if first_word.lower() == "port":
-                                x = x + 1
-                            # Add lines to vlan_allowed_list:
-                            else:
-                                vlans_allowed_list.append(line)
-                        elif x == 3:
-                            first_word = line.split(" ")[0]
-                            # Increment counter when word 'Port' is found again
-                            if first_word.lower() == "port":
-                                x = x + 1
-                            # Add lines to vlan_active_list:
-                            else:
-                                vlans_forwarding_list.append(line)
-                        elif x == 4:
-                            # Add lines to vlan_active_list:
-                            vlans_not_pruned_list.append(line)
+            if line not in ["", " ", "\n"]:
+                if x == 0:
+                    # Find the first reference to the word 'port' which will house native vlan data
+                    first_word = line.split(" ")[0]
+                    if first_word.lower() == "port":
+                        x = x + 1
+                elif x == 1:
+                    first_word = line.split(" ")[0]
+                    if first_word.lower() == "port":
+                        x = x + 1
+                    # Add lines to native_vlan_list:
+                    else:
+                        vlans_native_list.append(line)
+                elif x == 2:
+                    first_word = line.split(" ")[0]
+                    # Increment counter when word 'Port' is found again
+                    if first_word.lower() == "port":
+                        x = x + 1
+                    # Add lines to vlan_allowed_list:
+                    else:
+                        vlans_allowed_list.append(line)
+                elif x == 3:
+                    first_word = line.split(" ")[0]
+                    # Increment counter when word 'Port' is found again
+                    if first_word.lower() == "port":
+                        x = x + 1
+                    # Add lines to vlan_active_list:
+                    else:
+                        vlans_forwarding_list.append(line)
+                elif x == 4:
+                    # Add lines to vlan_active_list:
+                    vlans_not_pruned_list.append(line)
 
-    if current_device_type == "cisco_nxos":
+    if device.parse_method == "cisco_nxos":
         for line in trunk_all_info:
-            if line != "":
-                if left(line, 1) != " ":
-                    if line != "\n":
-                        if left(line, 3) != "---":
-                            if left(line, 7) != "Feature":
-                                if x == 0:
-                                    # Find the first reference to the word 'port' which will house native vlan data.
-                                    first_word = line.split(" ")[0]
-                                    if first_word.lower() == "port":
-                                        x = x + 1
-                                elif x == 1:
-                                    # Find second instance of the word 'port' (VLANS Allowed) and increment counter
-                                    first_word = line.split(" ")[0]
-                                    if first_word.lower() == "port":
-                                        x = x + 1
-                                    # Add lines to native_vlan_list:
-                                    else:
-                                        vlans_native_list.append(line)
-                                elif x == 2:
-                                    # Increment counter when word 'Port' is found again (ERR Disabled)
-                                    first_word = line.split(" ")[0]
-                                    if first_word.lower() == "port":
-                                        x = x + 1
-                                    # Add lines to vlan_err_disabled_list:
-                                    else:
-                                        vlans_allowed_list.append(line)
-                                elif x == 3:
-                                    # Increment counter when word 'Port' is found again (ERR Disabled)
-                                    first_word = line.split(" ")[0]
-                                    if first_word.lower() == "port":
-                                        x = x + 1
-                                    # Add lines to vlan_err_disabled_list:
-                                    else:
-                                        vlans_err_disabled_list.append(line)
-                                elif x == 4:
-                                    first_word = line.split(" ")[0]
-                                    # Increment counter when word 'Port' is found again (STP Forwarding)
-                                    if first_word.lower() == "port":
-                                        x = x + 1
-                                    # Add lines to vlan_active_list:
-                                    else:
-                                        vlans_forwarding_list.append(line)
-                                elif x == 5:
-                                    # Add lines to vlan_active_list:
-                                    vlans_not_pruned_list.append(line)
+            if line != "" and left(line, 1) != " " and line != "\n":
+                if left(line, 3) != "---" and left(line, 7) != "Feature":
+                    if x == 0:
+                        # Find the first reference to the word 'port'
+                        # which will house native vlan data.
+                        first_word = line.split(" ")[0]
+                        if first_word.lower() == "port":
+                            x = x + 1
+                    elif x == 1:
+                        # Find second instance of the word 'port'
+                        # (VLANS Allowed) and increment counter
+                        first_word = line.split(" ")[0]
+                        if first_word.lower() == "port":
+                            x = x + 1
+                        # Add lines to native_vlan_list:
+                        else:
+                            vlans_native_list.append(line)
+                    elif x == 2:
+                        # Increment counter when word 'Port'
+                        # is found again (ERR Disabled)
+                        first_word = line.split(" ")[0]
+                        if first_word.lower() == "port":
+                            x = x + 1
+                        # Add lines to vlan_err_disabled_list:
+                        else:
+                            vlans_allowed_list.append(line)
+                    elif x == 3:
+                        # Increment counter when word 'Port'
+                        # is found again (ERR Disabled)
+                        first_word = line.split(" ")[0]
+                        if first_word.lower() == "port":
+                            x = x + 1
+                        # Add lines to vlan_err_disabled_list:
+                        else:
+                            vlans_err_disabled_list.append(line)
+                    elif x == 4:
+                        first_word = line.split(" ")[0]
+                        # Increment counter when word 'Port'
+                        # is found again (STP Forwarding)
+                        if first_word.lower() == "port":
+                            x = x + 1
+                        # Add lines to vlan_active_list:
+                        else:
+                            vlans_forwarding_list.append(line)
+                    elif x == 5:
+                        # Add lines to vlan_active_list:
+                        vlans_not_pruned_list.append(line)
 
     return {'vlans_native': vlans_native_list,
             'vlans_allowed': vlans_allowed_list,
@@ -1778,108 +877,434 @@ def get_trunk_dict(current_device_type):
             }
 
 
-
-def get_trunk_info(if_name, current_device_type):
-    trunk_all_info = conn.send_command("show int trunk").split('\n')
-    native_vlan, vlans_allowed, vlans_forwarding = "", "", ""
-    x = 0
-
-    if current_device_type == "cisco_ios":
-        for line in trunk_all_info:
-            if x == 0:
-                if left(line, len(if_name)) == if_name:
-                    number = re.compile(r"trunking\s+(\d+.*)$")
-                    native_vlan = number.search(line).group(1)
-                    x = x + 1
-            elif x == 1:
-                if left(line, len(if_name)) == if_name:
-                    number = re.compile(r"\s+(\d.*)$")
-                    vlans_allowed = number.search(line).group(1)
-                    x = x + 1
-            elif x == 2:
-                if line.find("not pruned") != -1:
-                    x = x + 1
-            elif x == 3:
-                if left(line, len(if_name)) == if_name:
-                    if right(line, 1).isnumeric():
-                        number = re.compile(r"\s+(\d.*)$")
-                    elif right(line, 1).isnumeric() is not True:
-                        number = re.compile(r"\s+(\w.*)$")
-                    vlans_forwarding = number.search(line).group(1)
-                    x = x + 1
-
-    if current_device_type == "cisco_nxos":
-        for line in trunk_all_info:
-            # Get the first word in the line to compare against the current IF name.
-            re_if = ""
-            re_line_if = re.compile(r"^(\S+)\s*")
-            left_line = left(line, 1)
-            if left_line != " ":
-                if line != "":
-                    re_if = re_line_if.search(line).group(1)
-                    # First match should grab native VLAN info.  Increment counter to 1 when found.
-                    if x == 0:
-                        if left(line, len(re_if)) == if_name:
-                            number = re.compile(r"^\S+\s+(\d+)\s.*")
-                            native_vlan = number.search(line).group(1)
-                            x = x + 1
-
-                    # Second match finds VLANs allowed on trunk.  Increment counter to 2 when found.
-                    elif native_vlan != "":
-                        if line.find("Vlans Allowed on Trunk") != -1:
-                            x = x + 1
-                        if x == 2:
-                            if left(line, len(re_if)) == if_name:
-                                number = re.compile(r".*\s+(\d.*)$")
-                                vlans_allowed = number.search(line).group(1)
-
-                    # Next search for 'not pruned' in string to increment counter.
-                    if vlans_allowed != "":
-                        right_str = right(line, 10)
-                        if right(line, 10) == "not pruned":
-                            x = x + 1
-                        if x == 3:
-                            if left(line, len(re_if)) == if_name:
-                                if right(line, 4) == "none":
-                                    vlans_forwarding = "none"
-                                elif right(line, 1).isnumeric() is not True:
-                                    number = re.compile(r"\s+(\d.*)$")
-                                    vlans_forwarding = number.search(line).group(1)
-                                x = x + 1
-
-    trunk_info = [native_vlan, vlans_allowed, vlans_forwarding]
-    return trunk_info
+def get_trunk_details(if_name, trunk_dict, key_value, net_dev):
+    """
+    Provides the trunk details for partivular key_value:
+    vlans_native, vlans_allowed, vlans_not_pruned
+    """
+    try:
+        for x in trunk_dict[key_value]:
+            interface, value = "", ""
+            if key_value != "vlans_native":
+                interface = x.split()[0]
+                value = x.split()[1]
+            else:
+                if net_dev.parse_method == "cisco_ios":
+                    interface = x.split()[0]
+                    value = x.split()[4]
+                elif net_dev.parse_method == "cisco_nxos":
+                    interface = x.split()[0]
+                    value = x.split()[1]
+            if if_name.lower() == interface.lower():
+                return value
+    except Exception as e:
+        net_dev.add_detected_error(e)
+        if VERBOSE:
+            print_net_dev_msg(net_dev, "Error getting trunk info from device: "+str(e))
+        return "Error, review Errors Log"
 
 
-def wrap_command(command, command_data):
+def count_interfaces(if_dictionary):
+    """
+    Count Number of interfaces per device, input has to be
+    "show interface" with TEXTFSM=True
+    """
+    return_dict = {
+        "Ethernet": {"count": 0, "active": 0},
+        "FastEthernet": {"count": 0, "active": 0},
+        "GigabitEthernet": {"count": 0, "active": 0},
+        "TenGigEthernet": {"count": 0, "active": 0},
+        "TwentyFiveGigEthernet": {"count": 0, "active": 0},
+        "FortyGigEthernet": {"count": 0, "active": 0},
+        "HundredGigEthernet": {"count": 0, "active": 0},
+        "Serial": {"count": 0, "active": 0},
+        "Subinterfaces": {"count": 0, "active": 0},
+        "Tunnel": {"count": 0, "active": 0},
+        "Port-channel": {"count": 0, "active": 0},
+        "Loopback": {"count": 0, "active": 0},
+        "VLAN": {"count": 0, "active": 0}
+    }
+    for i in if_dictionary:
+        split_if = i['interface'].split(".")
+        if len(split_if) == 1:
+            if left(i['interface'], 3).lower() == "eth":
+                return_dict["Ethernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["Ethernet"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "fas":
+                return_dict["FastEthernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["FastEthernet"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "gig":
+                return_dict["GigabitEthernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["GigabitEthernet"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "ten":
+                return_dict["TenGigEthernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["TenGigEthernet"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "twe":
+                return_dict["TwentyFiveGigEthernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["TwentyFiveGigEthernet"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "for":
+                return_dict["FortyGigEthernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["FortyGigEthernet"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "hun":
+                return_dict["HundredGigEthernet"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["HundredGigEthernet"]["active"] += 1
+            elif left(i['interface'], 6).lower() == "serial":
+                return_dict["Serial"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["Serial"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "tun":
+                return_dict["Tunnel"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["Tunnel"]["active"] += 1
+            elif left(i['interface'], 5).lower() == "port-":
+                return_dict["Port-channel"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["Port-channel"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "loo":
+                return_dict["Loopback"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["Loopback"]["active"] += 1
+            elif left(i['interface'], 3).lower() == "vla":
+                return_dict["VLAN"]["count"] += 1
+                if i['link_status'] == "up":
+                    return_dict["VLAN"]["active"] += 1
+        elif len(split_if) == 2:
+            return_dict["Subinterfaces"]["count"] += 1
+            if i['link_status'] == "up":
+                return_dict["Subinterfaces"]["active"] += 1
+    return return_dict
 
-    command_output = "------------------------------------------------------------\n" + \
-            "*******       " + command + "        *******" + "\n" + \
-            "------------------------------------------------------------\n" + \
-            "------------------------------------------------------------\n" + \
-            "------------------------------------------------------------\n" + \
-             command_data + "\n" + \
-            "------------------------------------------------------------\n" + \
-            "------------------------------------------------------------\n"
 
-    if DEBUG is True:
-        print("Wrapping command text for text file for command '" + command + "'.")
+def get_vrf_interfaces_dict(device, conn, count):
+    """
+    This function will parse VRF information to get interface and VRF
+    info.
+    THIS IS MESSY, IT NEEDS TO BE CLEANED
+    """
+    command = "show vrf"
+    if device.parse_method == "cisco_xr":
+        vrf_names = get_vrf_names(device, conn, count)
+        return_list = []
+        for vrf in vrf_names:
+            if vrf != "default":
+                vrf_dict = {}
+                command = "show vrf " + vrf + " detail"
+                output = conn.send_command(command)
+                start_log = False
+                for line in output.split("\n"):
+                    if line == "Interfaces:":
+                        start_log = True
+                    elif "Address" in line:
+                        start_log = False
+                        break
+                    elif start_log:
+                        vrf_dict["name"] = vrf
+                        vrf_dict["interface"] = line[2:]
+                        return_list.append(vrf_dict)
+        return return_list
+    if device.parse_method == "cisco_nxos":
+        command += " interface"
 
-    return command_output
+    output = log_cmd_textfsm(conn, device, command, count)
+    if "Invalid input detected at" in output:
+        rtr_str = "Invalid Input"
+        return rtr_str
+    if isinstance(output, str):
+        net_dev.add_error_msg("Issue with 'get_vrf_interfaces_dict', seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string.")
+    return output
 
 
-def wrap_json(command, command_dict):
+####Save Functions
+def save_device_data(net_devices, wb_obj, setup_vars, key_map):
+    """
+    Runs all the Save functions for the network devices
+    """
+    glbl_set = setup_vars["global"]
+    settings = setup_vars["settings"]
+    for net_dev in net_devices:
+        net_dev.update_outdir_outfile(glbl_set["output_dir"])
+        if net_dev.active == "Completed" and net_dev.elapsed_time:
+            gather_results_to_wb(wb_obj, net_dev, key_map)
+            if settings["gather_commands"]:
+                save_other_shows_to_txt(net_dev)
+        write_dev_vars_to_wb(wb_obj, net_dev, key_map["device_info_map"])
+        save_dev_show_json_data(net_dev)
+        add_err_msgs_to_wb(net_dev, wb_obj)
+    save_xls(wb_obj, glbl_set["output_file"], glbl_set["output_dir"])
 
-    command_output = {"command":command,
-                      "result":command_dict
-                      }
 
-    if DEBUG is True:
-        print("Wrapping command dictionary for JSON command '" + command + "'.")
+def save_dev_show_json_data(net_dev):
+    """
+    Saves the output of the "gather_" functions as json or raw depending
+    on whether textfsm applied. Creates a new file for every device in
+    a subdirectory of the "output directory".
+    """
+    json_data = net_dev.show_output_json
+    json_f_name = net_dev.json_out_file
+    output_dir = net_dev.out_dir + "JSON/"
+    if json_data:
+        output_dir = verify_path(output_dir)
+        spacer = gen_spacer("-", 2)
+        cmd_output_spacer = gen_spacer("#", 1)
+        file_name = output_dir + json_f_name
+        with open(file_name, "w+") as filehandle:
+            write_str = spacer + center_string("Connected to " + net_dev.host)
+            write_str += "\n" + center_string("Hostname is: " + net_dev.hostname)
+            write_str += "\n" + spacer
+            spacer = gen_spacer()
+            filehandle.write(write_str)
+            for show_cmd, output in json_data.items():
+                str_output = json.dumps(output, indent=1)
+                write_str = spacer + center_string("****** " + show_cmd + " ******")
+                write_str += "\n" + cmd_output_spacer + str_output
+                write_str += "\n" + cmd_output_spacer
+                filehandle.write(write_str)
+            write_str = spacer + "*" * 20 + "\tEnd of File\t" + "*" * 20
+            filehandle.write(write_str)
 
-    return command_output
+def print_net_dev_msg(net_dev, msg):
+    line1 = str(net_dev.main_col)
+    if len(line1)<8:
+        line1 += (8-len(line1))*" "
+    line1 = " "+line1
+    line2 = str(net_dev.host)
+    if len(line2)<15:
+        line2 += (15-len(line2))*" "
+    print(line1, "|", line2, "|", msg)
+
+
+def write_dev_vars_to_wb(wb_obj, device, var_loc):
+    """
+    Writes all the data to the "Main" worksheet
+    """
+    wb_sheet = wb_obj["Main"]
+    dev_vars = vars(device)
+    row = device.main_col
+    for key, col in var_loc.items():
+        if key in list(dev_vars.keys()):
+            if key == "interface_count" and dev_vars[key]:
+                for interf, c_key in col.items():
+                    values = dev_vars[key][interf]
+                    rw_cell(wb_sheet, row, c_key["count"], True, str(values["count"]))
+                    rw_cell(wb_sheet, row, c_key["active"], True, str(values["active"]))
+            elif isinstance(col, int):
+                rw_cell(wb_sheet, row, col, True, str(dev_vars[key]))
+
+
+def save_other_shows_to_txt(net_dev):
+    """
+    Saves the results to the "other" show commands entered on the
+    spreadsheet. creates a new file for every device in a subdirectory
+    of the "output directory"
+    """
+    if net_dev.user_rqstd_show:
+        file_name = verify_path(net_dev.out_dir + "show_cmd_captures/")
+        spacer = gen_spacer()
+        cmd_output_spacer = gen_spacer("#", 1)
+        file_name += net_dev.hostname + ".txt"
+        with open(file_name, "w+") as filehandle:
+            write_str = spacer
+            write_str += center_string("Connected to " + net_dev.host) + "\n"
+            write_str += center_string("Hostname is: " + net_dev.hostname)
+            write_str += "\n" + spacer
+            filehandle.write(write_str)
+            for show_cmd in net_dev.user_rqstd_show.keys():
+                write_str = show_cmd + "\n"
+                filehandle.write(write_str)
+            filehandle.write(spacer)
+            for show_cmd, output in net_dev.user_rqstd_show.items():
+                write_str = center_string("****** " + show_cmd + " ******")
+                write_str += "\n" + cmd_output_spacer + output + "\n"
+                write_str += cmd_output_spacer + spacer
+                filehandle.write(write_str)
+            write_str = "*" * 23 + " End of File " + "*" * 24
+            filehandle.write(write_str)
+
+
+def gather_results_to_wb(wb_obj, net_dev, key_map):
+    """
+    Writes the Simple show commands to the work book based on the
+    key_map information.
+    """
+    headers_key = map_headers(wb_obj)
+    show_results = net_dev.show_for_xls
+    d_parse = net_dev.parse_method
+    hostname = net_dev.hostname
+    for setting, list_of_shows in show_results.items():
+        if isinstance(list_of_shows, list):
+            sheet = list(key_map[d_parse][setting].keys())[0]
+            c_mapper = key_map[d_parse][setting][sheet]
+            for value in list_of_shows:
+                row = next_available_row(wb_obj[sheet])
+                rw_cell(wb_obj[sheet], row, 1, True, hostname)
+                for key, c_name in c_mapper.items():
+                    if key in value.keys():
+                        col = headers_key[sheet][c_name]
+                        wr_val = value[key]
+                        rw_cell(wb_obj[sheet], row, col, True, wr_val)
+        else:
+            print("Error", list_of_shows)
+
+
+def add_err_msgs_to_wb(net_dev, wb_obj):
+    """
+    Adds all the Registered Errors to the WorkSheet.
+    """
+    sheet_obj = wb_obj["Errors"]
+    err_msgs = net_dev.error_msgs
+    row = next_available_row(sheet_obj)
+    hostname = net_dev.hostname
+    if not hostname:
+        hostname = net_dev.host
+    for i, msg in enumerate(err_msgs):
+        row += i
+        rw_cell(sheet_obj, row, 1, True, hostname)
+        rw_cell(sheet_obj, row, 2, True, msg[1])
+        rw_cell(sheet_obj, row, 3, True, msg[0])
+
+
+def save_xls(wb_obj, file_name=None, output_dir=None):
+    """
+    Saves the WorkBook to provided Directory and File Name.
+    If no File Name and/or Directory provided it will save to im
+    """
+    file_save_string = ""
+    if output_dir:
+        output_dir = verify_path(output_dir)
+        file_save_string = output_dir
+    if file_name:
+        file_save_string += file_name
+    else:
+        file_save_string += INPUT_FILE_NAME[:-5] + "_new.xlsx"
+    print("saving the file to: " + file_save_string)
+    wb_obj.save(file_save_string)
+
+
+###Helper Functinos###
+def parse_locations_frm_prmpt(raw_str):
+    """
+    Parses the ? prompt to get the locations
+    """
+    locations_list = []
+    for line in raw_str.split("\n"):
+        print('"' + str(line) + '"')
+        if line and ":" not in line and "WORD" not in line and "ncomplete" not in line:
+            for i in line.split(" "):
+                if i:
+                    locations_list.append(i)
+                    break
+    return locations_list
+
+
+def find_val_in_col(value, column):
+    """
+    Returns the Row value in which the "value" was found
+    """
+    for n, cell in enumerate(column):
+        if cell.value == value:
+            return n + 1
+    return 0
+
+
+def gen_spacer(spacer_char="-", nl=2):
+    """
+    Returns a spacer string with 60 of designated character, "-" is default
+    It will generate two lines of 60 characters
+    """
+    spacer = ""
+    for i in range(nl):
+        spacer += spacer_char * 60
+        spacer += "\n"
+    return spacer
+
+
+def get_current_time(str_option="dt"):
+    """
+    Captures the current time and returns it. Will return both date
+    and time, or just one depending on the str_option provided.
+    """
+    now = datetime.now()
+    str_option = str_option.lower()
+    if str_option == "dt":
+        return now.strftime("%m/%d/%Y") + ", " + now.strftime("%H:%M:%S")
+    if str_option == "d":
+        return now.strftime("%m/%d/%Y")
+    if str_option == "t":
+        return now.strftime("%H:%M:%S")
+    return "Invalid selection.  Choose d for date, t for time, or dt for date + time."
+
+
+def get_hostname(conn, net_dev):
+    """
+    Gets Hostname from the Connection and saves it to the device.
+    """
+    t_hm = conn.find_prompt()[:-1]
+    if net_dev.parse_method == "cisco_xr":
+        net_dev.hostname = t_hm.split(":")[1]
+    else:
+        net_dev.hostname = t_hm
+
+
+def map_headers(wb_obj):
+    """
+    Returns a nested dictionary with the location and name of each
+    column header
+    """
+    sheets = wb_obj.sheetnames
+    return_value = {}
+    ignore_this = ["Main", "Commands", "Settings", "Errors"]
+    for sheet in sheets:
+        if sheet not in ignore_this:
+            row = wb_obj[sheet][1]
+            sheet_mapper = {}
+            for count, cell in enumerate(row):
+                sheet_mapper[cell.value] = count + 1
+            return_value[sheet] = sheet_mapper
+    return return_value
+
+
+def add_xls_tag(file_name):
+    """
+    Check the file_name to ensure it has ".xlsx" extension, if not add it
+    """
+    if file_name[:-5] != ".xlsx":
+        return file_name + ".xlsx"
+    else:
+        return file_name
+
+
+def next_available_row(sheet_obj, col='A'):
+    """
+    Returns the number of the next available Row, it determines
+    avaibaility based on whether there is an entry for hostname
+    """
+    column = sheet_obj[col]
+    for index, cell in enumerate(column):
+        if cell.value is None:
+            return index + 1
+    return len(column) + 1
+
+
+def get_xls_sheet(wb_obj, sheet_name):
+    """
+    Returns the Worksheet of provided Name
+    """
+    sheet_obj = wb_obj[sheet_name]
+    sheet_obj.protection.sheet = False
+    return sheet_obj
+
 
 def format_uptime(uptime):
+    """
+    Returns the Formated uptime.
+    """
     str_years, str_weeks, str_days, str_hours, str_minutes = 0, 0, 0, 0, 0
     str_input = uptime.split(",")
     for i in str_input:
@@ -1895,7 +1320,6 @@ def format_uptime(uptime):
             str_hours = int(str_split[0])
         if left(str_split[1], 3) == "min":
             str_minutes = int(str_split[0])
-
     if str_days > 365:
         years = str_days / 365
         if not years.is_integer():
@@ -1909,7 +1333,7 @@ def format_uptime(uptime):
         str_days = str_days - weeks * 7
         str_weeks = str_weeks + weeks
     if str_weeks > 52:
-        years = str_weeks/52
+        years = str_weeks / 52
         if not years.is_integer():
             years = years.split(".")
             years = years[0]
@@ -1924,47 +1348,19 @@ def format_uptime(uptime):
             )
 
 
-def write_error(device_name, error_msg):
-    global xls_row_error_current
-
-    sheet = wb_obj["Errors"]
-
-    xls_row_error_current = sheet.max_row + 1
-
-    rw_cell(xls_row_error_current, xls_columns['ERRORS_HOSTNAME'], True, device_name, "Errors")
-    rw_cell(xls_row_error_current, xls_columns['ERRORS_TIME'], True, get_current_time("t"), "Errors")
-    rw_cell(xls_row_error_current, xls_columns['ERRORS_ERROR'], True, error_msg, "Errors")
-
-
-def get_current_time(str_option="dt"):
-    now = datetime.now()  # Get current date and time
-    str_option = str_option.lower()
-
-    time = now.strftime("%H:%M:%S")
-    date = now.strftime("%m/%d/%Y")
-    if str_option == "dt":
-        return date + ", " + time
-    elif str_option == "d":
-        return date
-    elif str_option == "t":
-        return time
-    else:
-        return "Invalid selection.  Choose d for date, t for time, or dt for date + time."
-
-
-def get_short_if_name(interface, current_device_type):
-
+def get_short_if_name(interface, device_type):
+    """
+    Returns short if name. for cisco_ios it returns first 2 char and the
+    interface number. Everything else it returns the first 3 plus number.
+    """
     number = re.compile(r"(\d.*)$")
     name = re.compile("([a-zA-Z]+)")
-
     number = number.search(interface).group(1)
     name = name.search(interface).group(1)
     short_name = ""
-
-    if current_device_type == "cisco_ios":
+    if device_type == "cisco_ios":
         short_name = left(name, 2)
-
-    elif current_device_type == "cisco_nxos":
+    elif device_type in ["cisco_nxos", "cisco_xr"]:
         port = left(name, 3).lower()
         if port == "eth":
             short_name = left(name, 3)
@@ -1974,116 +1370,408 @@ def get_short_if_name(interface, current_device_type):
             short_name = left(name, 4)
         else:
             short_name = left(name, 2)
-
     if int(left(number, 1)) >= 0 or number is None:
         short_name = short_name + str(number)
-
     return short_name
 
 
-def is_socket_open(ip, port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.connect((ip, int(port)))
-        s.shutdown(2)
-        return True
-    except:
-        return False
-
-
 def left(s, amount):
+    """
+    Returns the left characters of amount size
+    """
     return s[:amount]
 
 
 def right(s, amount):
+    """
+    Returns the right characters of amount size
+    """
     return s[-amount:]
 
 
 def mid(s, offset, amount):
-    return s[offset:offset+amount]
+    """
+    Returns the middle characters starting at offset of length amount
+    """
+    return s[offset:offset + amount]
 
 
-def rw_cell(row, column, write=False, value="", sheet="Main"):
-    global wb_obj
-    sheet = wb_obj[sheet]
-
-    if write is False:
-        value = sheet.cell(row=row, column=column).value
-        return value
-    elif write is True:
-        sheet.cell(row=row, column=column).value = value
-
-
-def is_json(json_object):
+def open_xls(xls_input_file_name):
+    """
+    Returns the WorkBook of specified Name
+    """
     try:
-        json.loads(json.dumps(json_object))
-    except ValueError as e:
-        return False
-    return True
+        return openpyxl.load_workbook(xls_input_file_name, data_only=True)
+    except Exception as e:
+        print(e)
+        print("Please ensure the file exists or the correct filename was entered when utilizing the \"-i\" argument.")
 
 
-def get_arguments():
-    global xls_input_file, username, password, secret, file_output, file_name
-    arguments = {}
+def cli_args():
+    """Reads the CLI options provided and returns them using the OptionParser
+    Will return the Values as a dictionary"""
+    parser = optparse.OptionParser()
+    parser.add_option('-v','--verbose',
+                      dest="verbose",
+                      default=False,
+                      action="store_true",
+                      help="Enable Verbose Output"
+                      )
+    parser.add_option('-r','--raw_cli_output',
+                      dest="raw_cli_output",
+                      default=False,
+                      action="store_true",
+                      help="Capture the raw CLI output"
+                      )
+    parser.add_option('-i','--input_file',
+                      dest="input_file",
+                      default="GetInventory - Default.xlsx",
+                      action="store",
+                      help="Input file name of excel sheet"
+                      )
+    parser.add_option('-o','--output_file',
+                      dest="output_file",
+                      action="store",
+                      help="Output file name of excel sheet"
+                      )
+    parser.add_option('-d','--output_directory',
+                      dest="output_dir",
+                      action="store",
+                      help="Output Directory of excel sheet"
+                      )
+    parser.add_option('-u','--username',
+                      dest="username",
+                      action="store",
+                      help="Global Username"
+                      )
+    parser.add_option('-p','--password',
+                      dest="password",
+                      action="store",
+                      help="Global Password"
+                      )
+    parser.add_option('-s','--secret',
+                      dest="secret",
+                      action="store",
+                      help="Global Secret"
+                      )
 
-    failed_args = False
 
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "s:u:p:f:h:i:o:", ["ifile=","ofile"])
-    except getopt.GetoptError:
-        print("USAGE:  python main.py -i <XLS_INPUT_FILE> -o <OUTPUT_DIRECTORY>")
-        print("                       -f <XLS_OUTPUT_FILE> -u <USERNAME> -p <PASSWORD>")
-        print("                       -s <SECRET>\n\n\n")
+    options, remainder = parser.parse_args()
+    # Utilizing the vars() method we can return the options as a dictionary
+    return vars(options)
 
-        sys.exit(2)
-        failed_args = True
 
-    if failed_args is False:
-        for opt, arg in opts:
-            if opt == "-h":
-                print("\nUSAGE:  python main.py -i <XLS_INPUT_FILE> -o <OUTPUT_DIRECTORY>")
-                print("                       -f <XLS_OUTPUT_FILE> -u <USERNAME> -p <PASSWORD>")
-                print("                       -s <SECRET>\n\n\n")
-            elif opt in ("-i", "--inputfile"):
-                arguments['input_file'] = arg
-                xls_input_file = arg
-                if DEBUG is True:
-                    print("Input file is " + arguments['input_file'])
-            elif opt in ("-o", "--outputdir"):
-                if right(arg, 1) != "\\":
-                    arg = arg + "\\"
-                arguments['output_dir'] = arg
-                file_output = arg
-                if DEBUG is True:
-                    print("Output directory is " + arguments['output_dir'])
-            elif opt in ("-f", "--filename"):
-                arguments['output_file'] = arg
-                file_name = arg
-                if DEBUG is True:
-                    print("Output filename is " + arguments['output_file'])
-            elif opt in ("-u", "--user"):
-                arguments['username'] = arg
-                username = arg
-                if DEBUG is True:
-                    print("Username is " + arguments['username'])
-            elif opt in ("-p", "--pass"):
-                arguments['password'] = arg
-                password = arg
-                if DEBUG is True:
-                    print("Password is " + arguments['password'])
-            elif opt in ("-s", "--secret"):
-                arguments['secret'] = arg
-                secret = arg
-                if DEBUG is True:
-                    print("Secret is " + arguments['secret'])
-
-        return arguments
-
-    return None
 
 
 def verify_path(output_dir):
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    """
+    Generates Path if it doesn't exist.
+    """
+    sys_type = os.name
+    if sys_type == "nt" and ':' not in output_dir:
+        output_dir = os.getcwd() + output_dir
+    if not output_dir:
+        output_dir = os.getcwd()
+    if output_dir[-1] not in ["\\", "/"]:
+        output_dir += "/"
+    output_dir = mod_dir_based_on_os(output_dir)
+    try:
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        if "Read-only" in str(e):
+            print("Issue with path: " + output_dir)
+            print("Error was raised: " + str(e))
+            print("Suggestion: Try utilizing the full path.")
+            if sys_type != "nt":
+                print("If trying to use relative path please ensure that '/' is removed from leading directory name")
+            print("Exiting now, please try again.")
+            sys.exit()
+        else:
+            print("ERROR | ", e)
+            sys.exit()
+    return output_dir
 
 
-main()
+def rw_cell(sheet_obj, row, column, write=False, value=""):
+    """
+    Either writes or reads to/from a cell.
+    """
+    if write:
+        sheet_obj.cell(row=row, column=column).value = value
+        return None
+    return sheet_obj.cell(row=row, column=column).value
+
+
+def center_string(input_str, line_length=60):
+    """
+    Adds space in front of the string to center it.
+    """
+    rtr_str = ""
+    extra_space = int((line_length - len(input_str)) / 2)
+    if extra_space > 0:
+        rtr_str = " " * extra_space + input_str
+    return rtr_str
+
+
+"""########## New Network Device Class ###########"""
+
+
+class NetworkDevice():
+    """
+    NetworkDevice class to handle and retain all output information.
+    """
+    supported_devices = ["cisco_xr", "cisco_ios", "cisco_nxos", "extreme_exos"]
+    def __init__(
+            self,
+            t_host,
+            t_user,
+            t_pass,
+            t_secret,
+            t_device_type,
+            t_protocol,
+            port_override,
+            t_active
+            # ,
+            # raw_cli,
+            # out_dir
+        ):
+        self.active = t_active
+        self.host = t_host
+        self.hostname = ""
+        self.protocol = ""
+        self.parse_method = ""
+        self.collection_time = ""
+        self.elapsed_time = 0
+        self.interface_count = {}
+        self.show_output = {}
+        self.user_rqstd_show = {}
+        self.show_output_json = {}
+        self.show_for_xls = {}
+        self.cpu_1_min = ""
+        self.cpu_5_min = ""
+        self.cpu_5_sec = ""
+        self.cpu_15_min = ""
+        self.model = ""
+        self.serial_number = ""
+        self.uptime = ""
+        self.version = ""
+        self.conn_error = ""
+        self.running_image = ""
+        self.main_col = 0
+        self.json_out_file = ""
+        self.cmd_out_file = ""
+        self.sfp_count = ""
+        self.port = 0
+        self.connection = {'device_type': 'autodetect',
+                           'ip': t_host,
+                           'username': t_user,
+                           'password': t_pass,
+                           'secret': t_secret}
+
+        # self.log_raw_cli = raw_cli
+        # self.out_dir = out_dir
+
+        self.show_output = {}
+        self.comments = []
+        self.error_msgs = []
+        if port_override:
+            self.connection["port"] = port_override
+            self.port = port_override
+        # Check connection type
+        if t_device_type == "autodetect":
+            if self.active == "Yes":
+                self.detect_device_type()
+        else:
+            self.connection["device_type"] = str(t_device_type)
+            self.parse_method = t_device_type
+        # Check if Device is supported
+        if self.parse_method not in self.supported_devices:
+            msg = "Unable to detect the device type, Device type detected as: "+str(self.parse_method)
+            self.add_error_msg(msg)
+            self.active = "Error"
+        else:
+            if t_protocol == "telnet":
+                self.connection["device_type"] += "_telnet"
+                if not self.port:
+                    self.port = "23"
+            else:
+                self.connection["device_type"] += "_ssh"
+                self.protocol = "ssh"
+                if not self.port:
+                    self.port = "22"
+            self.connection["global_delay_factor"] = 2
+
+    def start_connection_log(self):
+        """Starts logging in Append Mode"""
+        log_path = (self.out_dir_path/"raw_logs"/(self.host+"_raw_cli.log"))
+        self.__add_time_stamp_to_file(log_path)
+        self.connection.open_session_log(str(log_path), "append")
+        if VERBOSE:
+            print_net_dev_msg(self, "Session Logging has been enabled")
+
+    def detect_device_type(self):
+        """
+        Detects the type of Device type.
+        """
+        try:
+            print(self.main_col,"|",self.host,"| Detecting Device Type")
+            guesser = netmiko.SSHDetect(**self.connection)
+            best_match = guesser.autodetect()
+            if not best_match:
+                msg = "Unable to detect the device type, Device type detected as: "+str(self.parse_method)
+                self.add_error_msg(msg)
+                self.active = "Error"
+                best_match = "Unknown"
+            else:
+                print(self.main_col, "|",self.host, "| Device was detected as:", best_match)
+            self.connection['device_type'] = best_match
+            self.parse_method = best_match
+        except Exception as e:
+            print(e)
+            self.parse_method = "Unknown"
+
+    def conn_error_detected(self, err_msg):
+        """
+        Add comment of connection error
+        """
+        self.conn_error = err_msg
+        self.add_detected_error(err_msg)
+        self.active = "Error"
+
+    def is_socket_open(self, port):
+        """
+        Checks if given port is open
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.connect((self.host, int(port)))
+            sock.shutdown(2)
+            return True
+        except:
+            return False
+
+    def probe_port(self, port):
+        """
+        Test given port, if port does not work it will test ssh and telnet
+        """
+        if self.is_socket_open(port):
+            self.port = port
+            return
+        elif self.is_socket_open(22):
+            return "ssh"
+        elif self.is_socket_open(23):
+            return "telnet"
+        else:
+            self.add_error_msg("None of the Ports were open. Skipping this Device.")
+            self.active = "Error"
+            return
+
+    def add_comment(self, t_comment):
+        """
+            Adds commments that will be added to sheet
+        """
+        comment = str(len(t_comment) + 1) + " | "
+        comment += str(t_comment)
+        self.comments.append(comment)
+
+    def add_error_msg(self, t_err_msg):
+        """
+            Adds commments that will be added to sheet
+        """
+        comment = str(len(self.error_msgs) + 1) + " | "
+        comment += str(t_err_msg)
+        t_time = get_current_time()
+        self.error_msgs.append([comment, t_time])
+
+
+
+    ##The following functions add more variables to the output
+    ##Or handle the non simple show commands
+    def read_vers_info(self):
+        """
+        Reads the "show version" information and updates the NetworkDevices
+        Variables accordingly.
+        """
+        output = self.show_output_json["show version"][0]
+        trantab = str.maketrans("", "", "\'\"{}[]")
+        self.model = str(output["hardware"]).translate(trantab)
+        self.uptime = output["uptime"]
+        self.version = output["version"]
+        if self.parse_method != "cisco_xr":
+            self.serial_number = str(output["serial"]).translate(trantab)
+            self.running_image = output["running_image"]
+
+    def update_outdir_outfile(self, out_dir):
+        """
+        Updates the name of output directory and the file names for
+        output json and requested commands.
+        """
+        if self.hostname:
+            self.json_out_file = self.hostname + "_" + self.host + "_JSON_cmds.json"
+            self.cmd_out_file = self.hostname + "_" + self.host + "_requested_cmds.txt"
+        else:
+            self.json_out_file = self.host + "_JSON_cmds.json"
+            self.cmd_out_file = self.host + "_requested_cmds.txt"
+        self.out_dir = out_dir
+
+    def add_detected_error(self, e):
+        exc_tb = sys.exc_info()[2]
+        exc_type = sys.exc_info()[0]
+        exc_line = exc_tb.tb_lineno
+        full_error = traceback.format_exc()
+        f_name = traceback.extract_tb(exc_tb, 1)[0][2]
+        t_err_msg = "{} | Exception Type: {} | At Function: {} | Line No: {} | Error Message: {}\n{}"
+        t_err_msg = t_err_msg.format(self.host, exc_type, f_name, exc_line, e, full_error)
+        self.add_error_msg(t_err_msg)
+
+
+###For testing Only
+def testing_connection(net_devices, wb_obj, key_map):
+    """
+    This is only for Testing the new functinos without multithreading.
+    """
+    for n, device in enumerate(net_devices):
+        if device.active == "Yes":
+            device.collection_time = get_current_time()
+            start_time = time.time()
+            connection = connect_single_device(device, n)
+            # Add any command function captures here
+            if connection != None:
+                gather_interface(connection, device, n)
+                device.interface_count = count_interfaces(device.show_output_json["show interface"])
+                device.active = "Completed"
+                connection.disconnect()
+            else:
+                device.active = "Error"
+            device.elapsed_time = time.time() - start_time
+
+
+"""NEED TO ASK HOW WE WILL HANDLE THIS?"""
+
+
+def remove_passwords(wb_obj):
+    """
+    Removes the passwords from the xls workbook that will be created.
+    Will not remove the password from the original input xls workbook.
+    """
+    rw_cell(wb_obj["Main"], 1, 2, True, "")
+    rw_cell(wb_obj["Main"], 2, 2, True, "")
+    rw_cell(wb_obj["Main"], 3, 2, True, "")
+    for n, val in enumerate(wb_obj["Main"]["F"]):
+        if n > 7: # Starts at 8
+            rw_cell(wb_obj["Main"], n, 6, True, "")
+            rw_cell(wb_obj["Main"], n, 7, True, "")
+
+
+def mod_dir_based_on_os(dir_name):
+    """
+    Based on type of system, it will change the '\\' to a '/', vice versa.
+    if nt, then it assumes it is a windows.
+    """
+    if os.name == "nt":
+        return dir_name.replace('/', "\\")
+    return dir_name.replace('\\', "/")
+
+
+if __name__ == "__main__":
+    main()
