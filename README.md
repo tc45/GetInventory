@@ -36,14 +36,12 @@ features are turned off), against vendor OSes not listed here.
 **Vendor OS Supported**
 * Cisco IOS
 * Cisco NX-OS
-**Beta**
-* Cisco IOS XR
+* Cisco IOS XR **Beta**
 **Coming Soon**
-* Extreme EXOS
 
 ## Platform Support
 
-GetInventory is intended to be cross-platform supportable, but has only been Fully tested on Windows platforms. LINUX or MAC is in Beta mode, please report any issues when utilizing with these platforms.
+GetInventory is intended to be cross-platform supportable, and has tested on Windows and MAC platforms. LINUX is in Beta mode, please report any issues when utilizing with these platforms.
 
 ## Getting Started
 
