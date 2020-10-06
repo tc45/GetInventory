@@ -1417,6 +1417,12 @@ def cli_args():
                       action="store_true",
                       help="Enable Verbose Output"
                       )
+    parser.add_option('-r','--raw_cli_output',
+                      dest="raw_cli_output",
+                      default=False,
+                      action="store_true",
+                      help="Capture the raw CLI output"
+                      )
     parser.add_option('-i','--input_file',
                       dest="input_file",
                       default="GetInventory - Default.xlsx",
@@ -1448,12 +1454,7 @@ def cli_args():
                       action="store",
                       help="Global Secret"
                       )
-    parser.add_option('-r','--raw_cli_output',
-                      dest="raw_cli_output",
-                      default=False,
-                      action="store_true",
-                      help="Global Secret"
-                      )
+
 
     options, remainder = parser.parse_args()
     # Utilizing the vars() method we can return the options as a dictionary
