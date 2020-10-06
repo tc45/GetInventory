@@ -37,7 +37,6 @@ features are turned off), against vendor OSes not listed here.
 * Cisco IOS
 * Cisco NX-OS
 * Cisco IOS XR **Beta**
-**Coming Soon**
 
 ## Platform Support
 
