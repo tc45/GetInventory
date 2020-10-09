@@ -1,4 +1,4 @@
-Value Required INTERFACE (\S+)
+Value Required List INTERFACES (\S+)
 Value Required NAME (\S+)
 Value Required ID (\d+)
 Value Required SOO (\S+)
