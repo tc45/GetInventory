@@ -1,6 +1,6 @@
 Value PORT (\S+)
 Value NAME (.*?)
-Value STATUS (connected|notconnec|xcvrAbsen|suspended|noOperMem|disabled|down|sfpAbsent|linkFlapE|inactive|suspnd)
+Value STATUS (connected|notconnec|xcvrAbsen|xcvrInval|suspended|noOperMem|disabled|down|sfpAbsent|linkFlapE|inactive|suspnd)
 Value VLAN (\d+|routed|trunk|--)
 Value DUPLEX (\S+)
 Value SPEED (\S+)
