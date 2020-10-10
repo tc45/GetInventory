@@ -8,6 +8,7 @@ Start
   # Capture time-stamp if vty line has command time-stamping turned on
   ^Load\s+for\s+
   ^Time\s+source\s+is
+  ^. -> Error
 
 Start_record
   ^\s{2}\S+ -> Continue.Record
