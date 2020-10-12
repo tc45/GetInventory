@@ -167,22 +167,29 @@ def gather_interface(connection, net_dev, count):
     Gather Interface information, the function was modified from the
     original script.
     """
+    dev_type = net_dev.parse_method
     ####This is from old
     command = "show interface"
-    command2 = "show interface status"
+    output = net_dev.show_output_json[command].copy()
     log_cmd_textfsm(connection, net_dev, command, count)
-    log_cmd_textfsm(connection, net_dev, command2, count)
-    trunks = {}
+
+    # 'show interface status' capture if necessary
+    if dev_type == 'cisco_ios':
+        # Only cisco_ios provides useful information here
+        command2 = "show interface status"
+        log_cmd_textfsm(connection, net_dev, command2, count)
+        output2 = net_dev.show_output_json[command2]
+    else:
+        # all others do not provide the allowed vlans
+        output = "NO DATA"
+
     vrf_info = get_vrf_interfaces_dict(net_dev, connection, count)
 
-    output = net_dev.show_output_json[command].copy()
-    output2 = net_dev.show_output_json[command2]
-    dev_type = net_dev.parse_method
+    trunks = {}
     switchport_data_found = False
     if isinstance(output2, list):
         switchport_data_found = True
         # If device is a switch, get trunk info into dictionary.
-        #log_cmd_textfsm(connection, net_dev, "show int trunk", count)
         trunks = get_trunk_dict(net_dev, connection)
 
     # Write Interface data to spreadsheet 'Interfaces' tab
