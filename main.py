@@ -694,6 +694,9 @@ def show_proc_cpu(connection, net_dev, count):
     command = "show processes cpu"
     output = log_cmd_textfsm(connection, net_dev, command, count)
     try:
+        # Need this for devices with multiple cores.
+        if len(output)>1 and isinstance(output, list):
+            output = join_cpu_list(output)
         if dev_type in ["cisco_ios", "cisco_nxos"]:
             net_dev.cpu_5_sec = output[0]['cpu_5_sec']
             net_dev.cpu_1_min = output[0]['cpu_1_min']
@@ -704,6 +707,22 @@ def show_proc_cpu(connection, net_dev, count):
             net_dev.cpu_15_min = output[0]['cpu_15_min']
     except Exception as e:
         net_dev.add_detected_error(e)
+
+
+def join_cpu_list(cpu_list):
+    """
+    Joins a cpu list when more then one CPU exists.
+    returns the values with a comma deliminator
+    """
+    return_dict = {}
+    for i,line in enumerate(cpu_list):
+        for key, val in line.items():
+            if key in return_dict:
+                return_dict[key] += ', '+'Core '+str(i+1)+': '+val+'%'
+            else:
+                return_dict[key] = 'Core '+str(i+1)+': '+val+'%'
+    return return_dict
+
 
 
 def get_vrf_names(net_dev, connection, count):
