@@ -752,7 +752,7 @@ def get_vrf_names(net_dev, connection, count):
         output = log_cmd_textfsm(connection, net_dev, command, count, txt_tmpl)
 
         if VERBOSE:
-            print_net_dev_msg(net_dev, "Parsing vrfs")
+            print_net_dev_msg(net_dev, "Parsing VRFs")
         if isinstance(output, list):
             for vrf in output:
                 if vrf['name'] not in vrf_names:
@@ -1032,8 +1032,8 @@ def get_vrf_interfaces_dict(device, conn, count):
                         break
                     elif start_log:
                         vrf_dict["name"] = vrf
-                        vrf_dict["interface"] = line[2:]
-                        return_list.append(vrf_dict)
+                        vrf_dict["interfaces"] = line[2:]
+                        return_list.append(vrf_dict.copy())
         return return_list
     if device.parse_method == "cisco_nxos":
         command += " interface"
