@@ -255,13 +255,17 @@ def gather_interface(connection, net_dev, count):
 ## XR Ready, need to test
 def gather_cdp(connection, net_dev, count):
     command = "show cdp neighbor detail"
-    command2 = "show cdp neighbor"
     output = log_cmd_textfsm(connection, net_dev, command, count)
-    output2 = log_cmd_textfsm(connection, net_dev, command2, count)
-    if len(output) != len(output2):
-        if VERBOSE:
-            print_net_dev_msg(net_dev, "The output of the length of show cdp neigh and thelength of show cdp neighbor details is not the same, please manually gather raw command of both commands")
-        net_dev.add_error_msg("The output of the length of show cdp neigh and the length of show cdp neighbor details is not the same, please manually gather raw command of both commands")
+
+    #Check to make sure the cdp neigh count matches the detailed count
+    if net_dev.parse_method in ['cisco_nxos', 'cisco_ios']:
+        command2 = "show cdp neighbor"
+        output2 = log_cmd_textfsm(connection, net_dev, command2, count)
+        if len(output) != len(output2):
+            if VERBOSE:
+                print_net_dev_msg(net_dev, "The output of the length of show cdp neigh and thelength of show cdp neighbor details is not the same, please manually gather raw command of both commands")
+            net_dev.add_error_msg("The output of the length of show cdp neigh and the length of show cdp neighbor details is not the same, please manually gather raw command of both commands")
+
     if isinstance(output, list):
         net_dev.show_for_xls["gather_cdp"] = output.copy()
     elif isinstance(output, str):
