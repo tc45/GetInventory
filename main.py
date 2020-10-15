@@ -173,8 +173,8 @@ def gather_interface(connection, net_dev, count):
     dev_type = net_dev.parse_method
     ####This is from old
     command = "show interface"
-    output = net_dev.show_output_json[command].copy()
     log_cmd_textfsm(connection, net_dev, command, count)
+    output = net_dev.show_output_json[command].copy()
 
     # 'show interface status' capture if necessary
     if dev_type == 'cisco_ios':
