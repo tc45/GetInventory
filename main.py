@@ -1094,7 +1094,10 @@ def save_dev_show_json_data(net_dev):
             spacer = gen_spacer()
             filehandle.write(write_str)
             for show_cmd, output in json_data.items():
-                str_output = json.dumps(output, indent=1)
+                if isinstance(output, str):
+                    str_output = output
+                else:
+                    str_output = json.dumps(output, indent=1)
                 write_str = spacer + center_string("****** " + show_cmd + " ******")
                 write_str += "\n" + cmd_output_spacer + str_output
                 write_str += "\n" + cmd_output_spacer
