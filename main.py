@@ -153,6 +153,9 @@ def gather_mac(connection, net_dev, count):
             output += [{"MAC": "No MAC Data"}]
     else:
         output = log_cmd_textfsm(connection, net_dev, command, count)
+    if isinstance(output, str) and net_dev.parse_method=='cisco_ios':
+        command = "show mac-address-table"
+        output = log_cmd_textfsm(connection, net_dev, command, count)
     if isinstance(output, list):
         net_dev.show_for_xls["gather_mac"] = output.copy()
     elif isinstance(output, str):
