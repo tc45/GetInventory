@@ -345,7 +345,10 @@ def gather_bgp(connection, net_dev, count):
                 output["status"] = "No BGP Data"
                 net_dev.show_for_xls["gather_bgp"] = [output]
     else:
-        output = log_cmd_textfsm(connection, net_dev, command, count)
+        try:
+            output = log_cmd_textfsm(connection, net_dev, command, count)
+        except OSError:
+            output = log_cmd_textfsm(connection, net_dev, command, count, d_factor=10)
     if isinstance(output, list):
         net_dev.show_for_xls["gather_bgp"] = output
     elif isinstance(output, str):
@@ -681,7 +684,7 @@ def connect_single_device(net_dev, count):
 
 
 ###Get and Parse data functions
-def log_cmd_textfsm(connection, net_dev, command, count, txtfsm_tmpl=None):
+def log_cmd_textfsm(connection, net_dev, command, count, txtfsm_tmpl=None, d_factor=None):
     """
     Logs the Command with the textfsm option enabled, it also uses
     a template if needed. Also adds the output to the NetworkDevice
@@ -691,7 +694,11 @@ def log_cmd_textfsm(connection, net_dev, command, count, txtfsm_tmpl=None):
         print_net_dev_msg(net_dev, "Capturing '{}' with TextFSM Enabled".format(command))
     if txtfsm_tmpl:
         mod_dir_based_on_os(txtfsm_tmpl)
-    output = connection.send_command(command, use_textfsm=True, textfsm_template=txtfsm_tmpl)
+    if d_factor:
+        output = connection.send_command(command, use_textfsm=True, textfsm_template=txtfsm_tmpl,
+                                         delay_factor=d_factor)
+    else:
+        output = connection.send_command(command, use_textfsm=True, textfsm_template=txtfsm_tmpl)
     if isinstance(output, list):
         net_dev.show_output_json[command] = output.copy()
     else:
