@@ -1638,6 +1638,7 @@ class NetworkDevice():
             self.active = "Error"
         else:
             if t_protocol == "telnet":
+                self.protocol = "telnet"
                 self.connection["device_type"] += "_telnet"
                 if not self.port:
                     self.port = "23"
