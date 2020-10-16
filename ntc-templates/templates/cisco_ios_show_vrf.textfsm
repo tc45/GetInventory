@@ -1,16 +1,23 @@
 Value Required NAME (\S+)
-Value DEFAULT_RD (\S+:\d+|<not set>)
+Value DEFAULT_RD (\S+:\d+|<not set>|\d+)
 Value PROTOCOLS (\S+)
 Value List INTERFACES (\S+)
 
 Start
-  ^(\s+){0,1}Name\s+Default\s+RD\s+Protocols\s+Interfaces -> Start_record
+  ^(\s+){0,1}Name\s+Default\s+RD\s+Protocols\s+Interfaces -> Type1
+  ^\s*VRF-Name\s+VRF-ID\s+State\s+Reason -> Type2
   # Capture time-stamp if vty line has command time-stamping turned on
   ^Load\s+for\s+
   ^Time\s+source\s+is
+  ^\s+\^
+  ^\S*% Invalid input detected at '\^' marker.
   ^. -> Error
 
-Start_record
+Type1
   ^\s{2}\S+ -> Continue.Record
   ^\s{60}\s+${INTERFACES}
   ^\s+${NAME}\s+${DEFAULT_RD}\s+${PROTOCOLS}\s+${INTERFACES}
+
+Type2
+  ^${NAME}\s+${DEFAULT_RD}\s+ -> Record
+  ^. -> Error
