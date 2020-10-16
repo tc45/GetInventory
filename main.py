@@ -390,7 +390,7 @@ def gather_commands(connection, net_dev, other_shows, count=0):
     for command in other_shows:
         if VERBOSE:
             print_net_dev_msg(net_dev, "Capturing '{}' as raw text".format(command))
-        output = connection.send_command(command)
+        output = connection.send_command(command, delay_factor=5)
         net_dev.user_rqstd_show[command] = output
 
 
