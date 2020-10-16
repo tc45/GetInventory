@@ -735,7 +735,7 @@ def join_cpu_list(cpu_list):
                 return_dict[key] += ', '+'Core '+str(i+1)+': '+val+'%'
             else:
                 return_dict[key] = 'Core '+str(i+1)+': '+val+'%'
-    return return_dict
+    return [return_dict]
 
 
 
@@ -767,7 +767,7 @@ def get_vrf_names(net_dev, connection, count):
         elif isinstance(output, str):
             #Capture
             if 'Invalid input detected' in output:
-                continue
+                pass
             else:
                 net_dev.add_error_msg("Issue with the Gather VRF Names, seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string. Output str is:\n'"+str(output)+"'")
         net_dev.vrf_names = vrf_names
