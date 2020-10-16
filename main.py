@@ -765,7 +765,11 @@ def get_vrf_names(net_dev, connection, count):
                 if vrf['name'] not in vrf_names:
                     vrf_names.append(vrf['name'])
         elif isinstance(output, str):
-            net_dev.add_error_msg("Issue with the Gather VRF Names, seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string.")
+            #Capture
+            if 'Invalid input detected' in output:
+                continue
+            else:
+                net_dev.add_error_msg("Issue with the Gather VRF Names, seems to be an issue with 'show vrf', check textfsm template., it is not parsing the data into a list, get a string. Output str is:\n'"+str(output)+"'")
         net_dev.vrf_names = vrf_names
     return vrf_names
 
