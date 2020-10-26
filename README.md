@@ -8,6 +8,7 @@ parsed and added into tables on individual tabs within the file.  In addition to
 each device can have a list of user input commands added into the 'Command' tab which will then be run against every device and a
 unique file will be output per device.  These can be any standard command that the platform will support.  
 
+[![published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/tc45/GetInventory)
 
 **Excel Spreadsheet output**
 | Output | Decription | Tab | Note |
@@ -306,3 +307,4 @@ Network architect turned automation programmer
 ## Acknowledgments
 
 * To all the engineers that have run the tool and provided feedback to improve it.
+
