@@ -299,7 +299,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 * **Tony Curtis** - *Initial work* - [Github-tc45](https://github.com/tc45)
 Network architect turned automation programmer
-* **Ruben GuitierrezMartinez** - [Github-tc45](https://github.com/rubengm13)
+* **Ruben GuitierrezMartinez** - [Github-rubengm13](https://github.com/rubengm13)
 Network engineer/NetDevOps developer
 
 ## License
