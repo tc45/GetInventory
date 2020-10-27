@@ -276,10 +276,6 @@ Below are some of the planned future enhancements.  I welcome any assistance.
 * Network Discovery
 * Subnet input instead of single IPs
 
-## Deployment
-
-Add additional notes about how to deploy this on a live system
-
 ## Built With
 
 * [Netmiko](https://pynet.twb-tech.com/blog/automation/netmiko.html) - SSH/Telnet connection handler
@@ -291,10 +287,6 @@ Add additional notes about how to deploy this on a live system
 
 Please reach out to Tony if you are interested in contributing to this project.  
 
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags).
-
 ## Authors
 
 * **Tony Curtis** - *Initial work* - [Github-tc45](https://github.com/tc45)
@@ -304,7 +296,7 @@ Network engineer/NetDevOps developer
 
 ## License
 
-
+Licensed under the MIT license.
 
 ## Acknowledgments
 
