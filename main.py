@@ -30,6 +30,7 @@ TESTING = False
 """###Global Variables###"""
 GLBL_KEY_MAP = {}
 
+START_TIME = datetime.now()
 
 
 def main():
@@ -418,10 +419,16 @@ def read_global_variables(ws_obj):
     t_dict["secret"] = rw_cell(ws_obj, 3, 2)
     if not t_dict["secret"]:
         t_dict["secret"] = t_dict["password"]
-    t_dict["output_dir"] = verify_path(rw_cell(ws_obj, 4, 2))
+
+    # Modify to add time to utilize strftime method to post time
+    # Will only update with Start Time
+    t_dict["output_dir"] = rw_cell(ws_obj, 4, 2)
+    t_dict["output_dir"] = add_time_to_str(t_dict["output_dir"], START_TIME)
+    t_dict["output_dir"] = verify_path(t_dict["output_dir"])
     t_dict["output_file"] = rw_cell(ws_obj, 5, 2)
     if t_dict["output_file"]:
         t_dict["output_file"] = add_xls_tag(t_dict["output_file"])
+        t_dict["output_file"] = add_time_to_str(t_dict["output_file"], START_TIME)
     else:
         print("Error:\tNo Output file value was entered.")
         print("\tPlease enter an output file name and try again.")
@@ -450,8 +457,6 @@ def get_setup_vars(wb_obj, cli_arg):
     Reads all the setup variables from the XLS document.
     """
     return_dict = {}
-    t_list = []
-    t_dict = {}
     # Gathers the Commands to capture
     return_dict["other_commands"] = cell_iter_to_list(wb_obj["Commands"]["A"], True)
     # Gathers the Settings, on which functions to do.
@@ -1819,6 +1824,9 @@ def mod_dir_based_on_os(dir_name):
     if os.name == "nt":
         return dir_name.replace('/', "\\")
     return dir_name.replace('\\', "/")
+
+def add_time_to_str(raw_str, time_obj):
+    return time_obj.strftime(raw_str)
 
 
 if __name__ == "__main__":
