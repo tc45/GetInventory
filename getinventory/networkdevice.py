@@ -1,5 +1,8 @@
 import sys
 import traceback
+from typing import Union
+
+from netcapt.cisco import CiscoNxosDevice, CiscoXrDevice, CiscoWlcDevice, CiscoIosDevice
 from unipath import Path
 import netcapt
 from netmiko.ssh_exception import AuthenticationException
@@ -11,34 +14,32 @@ class InitiatingConnectionException(Exception):
 
 
 class NetworkDevice:
-    def __init__(self, gather_bool, status, main_row, **kwargs):
+    netcapt_handle: Union[None, CiscoIosDevice, CiscoXrDevice, CiscoNxosDevice, CiscoWlcDevice]
+
+    def __init__(self, gather_f_bools, status, main_row, output_path, output_raw_cli, **kwargs):
         self.status = status
-        self.gather_bool = gather_bool
+        self.gather_f_bools = gather_f_bools
         self.main_row = main_row
+        self.output_raw_cli = output_raw_cli
+        self.output_path = Path(output_path)
         self.elapsed_time = int()
 
         self.verbose = kwargs['verbose']
         self.host = kwargs['host']
+        # The autodetect option will be handled by the GetNetworkDevice function
         self.netcapt_handle = netcapt.GetNetworkDevice(**kwargs)
 
         self.gather_data = dict()
 
-        # Below Needs to go into device info
-        # TODO: Need to work on Migrating this to device_attributes
         self.collection_time = str()
         self.hostname = str()
-        self.cpu_5_sec = str()
-        self.cpu_1_min = str()
-        self.cpu_5_min = str()
-        self.cpu_15_min = str()
-        self.version = str()
 
-        # Adding all
+        # Adding all Device Information here instead of instantiating a variable
         self.device_info = dict()
 
         # Stores a list of all the error/Comments
         self.comment_messages = list()
-        self.output_path = Path()
+
 
     def add_exception_error(self, e, e_type='Error'):
         """
@@ -54,7 +55,7 @@ class NetworkDevice:
         exc_type = sys.exc_info()[0]
         exc_line = exc_tb.tb_lineno
         f_name = traceback.extract_tb(exc_tb, 1)[0][2]
-        traceback_str = traceback.format_exec()
+        traceback_str = traceback.format_exc()
         t_err_msg = "{} | Exception Type: {} | At Function: {} | Line No: {} | Error Message: {} | FULL MESSAGE:\n{}"
         t_err_msg = t_err_msg.format(self.host, exc_type, f_name, exc_line, e, traceback_str)
         self.add_cmnt_msg(e, e_type, exc_type, t_err_msg)
@@ -84,7 +85,7 @@ class NetworkDevice:
         Loops through all the Gather_Bool items and gets attribute from netcapt_handle.
         Will only run if True.
         """
-        for gather_fun_name, gather_true_false in self.gather_bool.items():
+        for gather_fun_name, gather_true_false in self.gather_f_bools.items():
             try:
                 if gather_true_false:
                     self.gather_data[gather_fun_name] = getattr(self.netcapt_handle, gather_fun_name)()
@@ -111,11 +112,35 @@ class NetworkDevice:
         :param msg: msg to print if Global Verbose is true
         :return: None
         """
-        if self.VERBOSE:
+        if self.verbose:
             self.print_msg(msg)
 
     def update_dev_info(self):
-        pass
+        self.hostname = self.netcapt_handle.hostname
+        self.device_info['hostname'] = self.hostname
+
+        # Load 'show version info to device_info
+        data = self.netcapt_handle.gather_version()
+        if isinstance(data, list):
+            self.device_info.update(data[0])
+
+        # load show process cpu to device_info
+        data = self.netcapt_handle.send_command('show processes cpu', use_textfsm=True)
+        if isinstance(data, list):
+            self.device_info.update(data[0])
+
+        # Add the Interface Counts
+        data = self.netcapt_handle.count_intf()
+        if isinstance(data, dict):
+            self.device_info['interface_count'] = data
+
+    def end_connection(self):
+        self.netcapt_handle.end_connection()
+
+    def start_raw_cli_log(self):
+        raw_cli_f_path = self.output_path.child('raw_cli_logs').child(self.host+'_raw_cli.log')
+        hf.add_time_stamp_to_file(raw_cli_f_path)
+        self.netcapt_handle.start_raw_cli_log(raw_cli_f_path)
 
     def start_connection(self, max_attempts=3):
         """
@@ -127,6 +152,7 @@ class NetworkDevice:
         for attempt in range(max_attempts):
             try:
                 self.netcapt_handle.start_connection()
+                self.start_raw_cli_log()
                 return
             except AuthenticationException as e:
                 self.add_exception_error(e, traceback.format_exc())
