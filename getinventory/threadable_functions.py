@@ -8,6 +8,7 @@ def run_gathers(net_dev: NetworkDevice):
     try:
         net_dev.start_connection()
         net_dev.update_dev_info()
+        net_dev.go_gather()
         net_dev.end_connection()
     except Exception as e:
         net_dev.add_exception_error(e)
