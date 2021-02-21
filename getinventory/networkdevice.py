@@ -1,12 +1,16 @@
 import sys
 import traceback
 from typing import Union
-
 from netcapt.cisco import CiscoNxosDevice, CiscoXrDevice, CiscoWlcDevice, CiscoIosDevice
 from unipath import Path
 import netcapt
-from netmiko.ssh_exception import AuthenticationException
 from . import helper_functions as hf
+from netmiko.ssh_exception import AuthenticationException
+from netcapt.netcapt_exceptions import GatherAttributeError
+from datetime import datetime
+
+from threading import Semaphore
+SCREEN_LOCK = Semaphore(value=1)
 
 
 class InitiatingConnectionException(Exception):
@@ -26,7 +30,8 @@ class NetworkDevice:
         self.main_row = main_row
         self.output_raw_cli = output_raw_cli
         self.output_path = Path(output_path)
-        self.elapsed_time = int()
+        self.start_time = None
+        self.end_time = None
         self.other_commands = other_commands
 
         self.verbose = verbose
@@ -55,7 +60,8 @@ class NetworkDevice:
         :param e: Exception
         :return:
         """
-        self.status = set_status
+        if set_status:
+            self.status = set_status
         exc_tb = sys.exc_info()[2]
         exc_type = sys.exc_info()[0]
         exc_line = exc_tb.tb_lineno
@@ -99,6 +105,8 @@ class NetworkDevice:
                         self.gather_data[gather_fun_name] = data
                     else:
                         self.gather_data[gather_fun_name] = getattr(self.netcapt_handle, gather_fun_name)()
+            except GatherAttributeError as e:
+                self.add_exception_error(e, 'Unsupported Gather Method', "")
             except Exception as e:
                 self.add_exception_error(e)
 
@@ -113,7 +121,9 @@ class NetworkDevice:
         line2 = str(self.host)
         if len(line2) < 15:
             line2 += (15 - len(line2)) * " "
+        SCREEN_LOCK.acquire()
         print(line1, "|", line2, "|", msg)
+        SCREEN_LOCK.release()
 
     def verbose_msg(self, msg):
         """
@@ -146,7 +156,10 @@ class NetworkDevice:
         self.device_info['sfp_count'] = len(data)
 
     def end_connection(self):
+        """ Close Connection"""
         self.netcapt_handle.end_connection()
+        self.verbose_msg('Ending CLI connection')
+
 
     def start_raw_cli_log(self):
         raw_cli_f_path = self.output_path.child('raw_cli_logs').child(self.host+'_raw_cli.log')
@@ -173,3 +186,14 @@ class NetworkDevice:
         raise InitiatingConnectionException(
             'LOGIN FAILURE: Attempt to Establish Connection Failed, Attempt: ' + str(attempt)
         )
+
+    def update_time(self, start_end):
+        if start_end == 'start':
+            self.start_time = datetime.now()
+            self.verbose_msg('Start Time: {}'.format(self.start_time))
+        elif start_end == 'end':
+            self.start_time = datetime.now()
+            self.verbose_msg('End Time: {}'.format(self.end_time))
+            if self.start_time is not None and self.end_time is not None:
+                self.device_info['elapsed_time'] = str(self.end_time - self.start_time)
+                self.verbose_msg('Elapsed Time: {}'.format(self.device_info['elapsed_time']))
