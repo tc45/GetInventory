@@ -8,6 +8,8 @@ from . import networkdevice
 from . import threadable_functions as thread_f
 from unipath import Path
 from . xlsx_output_key_map import OUTPUT_KEY_MAP, DEVICE_INFO_MAP, INTERACE_COUNT_MAP
+from datetime import datetime
+
 
 class GetInventoryProject:
     # Start Row of Main column to begin reading Network Devices
@@ -25,6 +27,9 @@ class GetInventoryProject:
     gathers_ignore_to_map_to_xls = ['gather_version', 'gather_commands']
 
     def __init__(self):
+        self.start_time = datetime.now()
+        self.end_time = None
+
         cli_args = hf.cli_args()
 
         # only values that are defaulted by cli_args function
@@ -86,16 +91,33 @@ class GetInventoryProject:
         """
         Run all the Methods to get the project loaded
         """
+        self.print_start()
         self.build_out_directories()
         self.update_gather_functions()
         self.update_network_devices()
 
+    def print_start(self):
+        print(60 * "_")
+        print(hf.center_message('Start Time:' + str(self.start_time), 60))
+        print(hf.center_message('Input File:' + str(self.input_file), 60))
+        print(60 * "_")
+
+    def print_end(self):
+        self.end_time = datetime.now()
+        print(60 * "_")
+        print(hf.center_message('Elapsed Time: %s' % (self.end_time - self.start_time), 60))
+        print(hf.center_message('End Time: %s' % self.end_time, 60))
+        print(60 * "_")
+
     def build_out_directories(self):
         self.output_path.mkdir(parents=True)
-        subdirectories = ['raw_cli_logs', 'json', 'gather_commands']
-        for subdir in subdirectories:
-            self.output_path.child(subdir).mkdir(parents=True)
-
+        # subdirectories = ['raw_cli_logs', 'json', 'gather_commands']
+        if self.gather_f_bools['gather_commands']:
+            self.output_path.child('gather_commands').mkdir(parents=True)
+        if self.data_to_json:
+            self.output_path.child('json').mkdir(parents=True)
+        if self.output_raw_cli:
+            self.output_path.child('raw_cli_logs').mkdir(parents=True)
 
     def start(self):
         """
@@ -106,6 +128,7 @@ class GetInventoryProject:
     def end(self):
         self.save_everything()
         self.open_xls_file_in_app()
+        self.print_end()
 
     def wr_net_dev_to_wb(self):
         for net_dev in self.network_devices:
@@ -139,14 +162,12 @@ class GetInventoryProject:
             return
 
         # Need to build simple sheet_map
-        # print(hostname, gather_name, data)
         sheet_map = self.__build_sheet_map(gather_name, data[0].keys())
 
         # Cycle through the data
         for i, data_entry in enumerate(data):
             xls.rw_cell(sheet_obj, next_row + i, 1, hostname)
             for key in sheet_map:
-                # print(data_entry)
                 # Input the data only if in sheet_map
                 if key in data_entry.keys():
                     wr_val = data_entry[key]
@@ -160,8 +181,23 @@ class GetInventoryProject:
         for net_dev in self.network_devices:
             output_file = output_folder.child(net_dev.hostname+'_'+net_dev.host+'.json')
             net_dev.verbose_msg("Saving Data to JSON File")
-            json_data = json.dumps(net_dev.gather_data, indent=4)
+            json_data = net_dev.gather_data.copy()
+            # Popping off the gather_commands data as it is not parsed and can be huge
+            if 'gather_commands' in json_data.keys():
+                json_data.pop('gather_commands')
+            json_data = json.dumps(json_data, indent=4)
             output_file.write_file(json_data)
+
+    def wr_to_file_gather_commands(self):
+        output_folder = self.output_path.child('gather_commands')
+        for net_dev in self.network_devices:
+            if 'gather_commands' in net_dev.gather_data.keys():
+                output_file = output_folder.child(net_dev.hostname+'_'+net_dev.host+'.json')
+                net_dev.verbose_msg("Saving gather commands data to file")
+                for cmd, data in  net_dev.gather_data['gather_commands'].items():
+                    # print(cmd)
+                    pass
+                    # output_file.write_file(json_data)
 
     def __build_sheet_map(self, gather_name, data_keys):
         """
@@ -188,10 +224,11 @@ class GetInventoryProject:
 
     def _intf_count_to_main(self, net_dev: networkdevice.NetworkDevice):
         ws_obj = self.work_book['Main']
-        for intf_name, vals in net_dev.device_info['interface_count'].items():
-            if intf_name in self.interface_count_map.keys():
-                for key, col in self.interface_count_map[intf_name].items():
-                    xls.rw_cell(ws_obj, net_dev.main_row, col, vals[key])
+        if 'interface_count' in net_dev.device_info.keys():
+            for intf_name, vals in net_dev.device_info['interface_count'].items():
+                if intf_name in self.interface_count_map.keys():
+                    for key, col in self.interface_count_map[intf_name].items():
+                        xls.rw_cell(ws_obj, net_dev.main_row, col, vals[key])
 
     def _net_dev_to_main(self, net_dev: networkdevice.NetworkDevice):
         ws_obj = self.work_book['Main']
@@ -378,6 +415,7 @@ class GetInventoryProject:
         """
         if self.data_to_json:
             self.output_data_to_json()
+        self.wr_to_file_gather_commands()
         self.wr_net_dev_to_wb()
         self.write_device_errors_to_wb()
         self.clear_credentials()
@@ -390,6 +428,7 @@ class GetInventoryProject:
         file_location = xls.add_xls_tag(self.output_file)
         file_location = self.output_path.child(file_location)
         # Open command for Windows
+        self.verbose_msg('Opening the file: %s' % file_location)
         if sys.platform == 'win32':
             os.system('start ' + str(file_location))
         # Open Command for Mac
