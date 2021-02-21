@@ -40,12 +40,11 @@ def cli_args():
                       help='Maximum number of concurrent thread',
                       type='int'
                       )
-    parser.add_option('-j', '--json_output',
-                      dest='max_threads',
+    parser.add_option('-j', '--data_to_json',
+                      dest='data_to_json',
                       action='store',
-                      default=25,
-                      help='Maximum number of concurrent thread',
-                      type='int'
+                      default=False,
+                      help='Maximum number of concurrent threads',
                       )
 
     # Following values have default values in the GetInventoryProject class
