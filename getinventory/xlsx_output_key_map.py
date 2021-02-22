@@ -39,10 +39,12 @@ OUTPUT_KEY_MAP = {
         {'column': 'E', 'column_name': 'Destination Port', 'keys': ['destination_port', 'ports']},
     ],
     'gather_arp': [
-        {'column': 'B', 'column_name': 'Destination Address', 'keys': ['destination_address', 'mac']},
-        {'column': 'C', 'column_name': 'Type', 'keys': ['type']},
-        {'column': 'D', 'column_name': 'VLAN', 'keys': ['vlan']},
-        {'column': 'E', 'column_name': 'Destination Port', 'keys': ['destination_port', 'ports']},
+        {'column': 'B', 'column_name': 'VRF', 'keys': ['vrf']},
+        {'column': 'C', 'column_name': 'IP Address', 'keys': ['address']},
+        {'column': 'D', 'column_name': 'Age', 'keys': ['age']},
+        {'column': 'E', 'column_name': 'Hardware/MAC', 'keys': ['mac']},
+        {'column': 'F', 'column_name': 'Type', 'keys': ['type']},
+        {'column': 'G', 'column_name': 'Interface', 'keys': ['interface']},
     ],
     'gather_interfaces': [
         {'column': 'B', 'column_name': 'Interface', 'keys': ['interface']},
@@ -125,7 +127,7 @@ OUTPUT_KEY_MAP = {
         {'column': 'X', 'column_name': 'Join Taken Time', 'keys': ['join_taken_time']},
     ],
     'gather_ip_mroute': [
-        {'column': 'B', 'column_name': 'Multicast Source IP', 'keys': ['multicast_source_ip']},
+        {'column': 'B', 'column_name': 'Multicast Source IP', 'keys': ['no_data', 'multicast_source_ip']},
         {'column': 'C', 'column_name': 'Multicast Group IP', 'keys': ['multicast_group_ip']},
         {'column': 'D', 'column_name': 'Up Time', 'keys': ['up_time']},
         {'column': 'E', 'column_name': 'Expiration Time', 'keys': ['expiration_time']},
@@ -145,19 +147,19 @@ OUTPUT_KEY_MAP = {
 # This data will be filled in from the class variable device_info
 # The below mapper will only work with values that are string or list
 DEVICE_INFO_MAP = [
-    {'column': 10, 'keys': ['hostname']},
-    {'column': 11, 'keys': ['hardware', 'pid']},
-    {'column': 12, 'keys': ['serial', 'sn']},
-    {'column': 15, 'keys': ['uptime', 'system_up_time']},
-    {'column': 16, 'keys': ['os']},
-    {'column': 17, 'keys': ['boot_image', 'product_version']},
-    {'column': 17, 'keys': ['boot_image', 'product_version']},
+    {'column': 'J', 'keys': ['hostname']},
+    {'column': 'K', 'keys': ['hardware', 'pid', 'platform']},
+    {'column': 'L', 'keys': ['serial', 'sn']},
+    {'column': 'O', 'keys': ['uptime', 'system_up_time']},
+    {'column': 'P', 'keys': ['os', 'version']},
+    {'column': 'Q', 'keys': ['boot_image', 'running_image']},
     {'column': 'AR', 'keys': ['cpu_5_sec']},
     {'column': 'AS', 'keys': ['cpu_1_min']},
     {'column': 'AT', 'keys': ['cpu_5_min']},
     {'column': 'AU', 'keys': ['cpu_15_min']},
     {'column': 'AV', 'keys': ['sfp_count']},
-    {'column': 'BA', 'keys': ['elapsed_time']}
+    {'column': 'AW', 'keys': ['elapsed_time']},
+    {'column': 'I', 'keys': ['device_type']},
 ]
 
 INTERACE_COUNT_MAP = {

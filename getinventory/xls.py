@@ -100,8 +100,8 @@ def save_xls_retry_if_open(wb_obj, file_name, out_dir_path=Path("")):
             save_xls(wb_obj, file_name, out_dir_path)
             file_open = False
         except PermissionError:
-            msg = 5 * '!' + "The file %s is Open, Please close the file and try again. Hit Enter when Ready." + 5 * '!'
-            msg += "\nType ignore if you wish to continue without saving.\n"
+            msg = "ERROR:\n\tThe file %s is open. Please close the file and try again. Hit Enter when ready."
+            msg += "\n\tType ignore if you wish to continue without saving.\n"
             response = input(msg % file_name)
             if "ignore" in response:
                 return
