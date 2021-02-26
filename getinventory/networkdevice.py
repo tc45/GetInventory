@@ -203,9 +203,11 @@ class NetworkDevice:
         if start_end == 'start':
             self.start_time = datetime.now()
             self.verbose_msg('Start Time: {}'.format(self.start_time))
+            self.device_info['start_time'] = str(self.start_time)
         elif start_end == 'end':
             self.end_time = datetime.now()
             self.verbose_msg('End Time: {}'.format(self.end_time))
+            self.device_info['end_time'] = str(self.end_time)
             if self.start_time is not None and self.end_time is not None:
                 self.device_info['elapsed_time'] = str(self.end_time - self.start_time)
                 self.verbose_msg('Elapsed Time: {}'.format(self.device_info['elapsed_time']))

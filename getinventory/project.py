@@ -217,6 +217,7 @@ class GetInventoryProject:
             sheet_obj = self.work_book[sheet_name]
             for i, col_name in enumerate(first_col_names, 1):
                 xls.rw_cell(sheet_obj, 1, i, col_name)
+                xls.set_width(sheet_obj, self.dflt_col_width, i)
             # Build out the features
             for mapper in list_of_dict_w_col_name:
                 # Add the Column Name

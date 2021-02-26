@@ -147,6 +147,7 @@ OUTPUT_KEY_MAP = {
 # This data will be filled in from the class variable device_info
 # The below mapper will only work with values that are string or list
 DEVICE_INFO_MAP = [
+    {'column': 'H', 'keys': ['start_time']},
     {'column': 'J', 'keys': ['hostname']},
     {'column': 'K', 'keys': ['hardware', 'pid', 'platform']},
     {'column': 'L', 'keys': ['serial', 'sn']},
