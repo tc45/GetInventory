@@ -24,7 +24,9 @@ class GetInventoryProject:
     device_info_map = DEVICE_INFO_MAP
     interface_count_map = INTERACE_COUNT_MAP
     # list of gather functions to not add to the work book
-    gathers_ignore_to_map_to_xls = ['gather_version', 'gather_commands']
+    gathers_to_txt_file = ['gather_config', 'gather_commands']
+
+    dflt_col_width = 25
 
     def __init__(self):
         self.start_time = datetime.now()
@@ -62,7 +64,6 @@ class GetInventoryProject:
 
         # This should be in the same order as the settings page
         self.gather_f_bools = {
-            'gather_version': True,
             'gather_arp': False,
             'gather_mac': False,
             'gather_interfaces': False,
@@ -73,7 +74,8 @@ class GetInventoryProject:
             'gather_inventory': False,
             'gather_commands': False,
             'gather_ip_mroute': False,
-            'gather_ap': False
+            'gather_ap': False,
+            'gather_config': False,
         }
 
         # List of netcapt Network Devices, will only be in list of Status is set to 'Yes'
@@ -139,8 +141,8 @@ class GetInventoryProject:
     def _net_dev_gathers_to_wb(self, net_dev: networkdevice.NetworkDevice):
         for gather_name, data in net_dev.gather_data.items():
             sheet_name = ' '.join(gather_name.split('_')[1:]).upper()
-            # Only Continue for items we want in the Work Book
-            if gather_name not in self.gathers_ignore_to_map_to_xls:
+            # Only Continue for items have an index built out.
+            if gather_name in self.output_key_map:
                 # Only build if we want it in the Work Book
                 self._build_ws_obj(sheet_name, self.output_key_map[gather_name])
                 # Add all the Data
@@ -185,22 +187,12 @@ class GetInventoryProject:
             output_file = output_folder.child(net_dev.hostname+'_'+net_dev.host+'.json')
             net_dev.verbose_msg("Saving Data to JSON File")
             json_data = net_dev.gather_data.copy()
-            # Popping off the gather_commands data as it is not parsed and can be huge
-            if 'gather_commands' in json_data.keys():
-                json_data.pop('gather_commands')
+            # Popping off the Commands that are going to their own file data as it is not parsed and can be huge
+            for pop_key in self.gathers_to_txt_file:
+                if pop_key in json_data:
+                    json_data.pop(pop_key)
             json_data = json.dumps(json_data, indent=4)
             output_file.write_file(json_data)
-
-    def wr_to_file_gather_commands(self):
-        output_folder = self.output_path.child('gather_commands')
-        for net_dev in self.network_devices:
-            if 'gather_commands' in net_dev.gather_data.keys():
-                output_file = output_folder.child(net_dev.hostname+'_'+net_dev.host+'.json')
-                net_dev.verbose_msg("Saving gather commands data to file")
-                for cmd, data in  net_dev.gather_data['gather_commands'].items():
-                    # print(cmd)
-                    pass
-                    # output_file.write_file(json_data)
 
     def __build_sheet_map(self, gather_name, data_keys):
         """
@@ -214,7 +206,10 @@ class GetInventoryProject:
                     sheet_map[key] = mapper['column']
         return sheet_map
 
-    def _build_ws_obj(self, sheet_name, list_of_dict_w_col_name, first_col_names=['Hostname']):
+    def _build_ws_obj(self, sheet_name, list_of_dict_w_col_name, first_col_names=None):
+        if first_col_names is None:
+            first_col_names = ['hostname']
+
         # Build out Work Sheet if it does not exist, will build out with all the Column Names
         # the Default value for first Column is 'Hostname'
         if sheet_name not in self.work_book.sheetnames:
@@ -222,8 +217,19 @@ class GetInventoryProject:
             sheet_obj = self.work_book[sheet_name]
             for i, col_name in enumerate(first_col_names, 1):
                 xls.rw_cell(sheet_obj, 1, i, col_name)
+            # Build out the features
             for mapper in list_of_dict_w_col_name:
+                # Add the Column Name
                 xls.rw_cell(sheet_obj, 1, mapper['column'], mapper['column_name'])
+
+                # Set Width, if value available, otherwise set to default
+                if 'width' in mapper.keys():
+                    xls.set_width(sheet_obj, mapper['width'], mapper['column'])
+                else:
+                    xls.set_width(sheet_obj, self.dflt_col_width, mapper['column'])
+
+                # Enable the filter option
+                sheet_obj.auto_filter.ref = sheet_obj.dimensions
 
     def _intf_count_to_main(self, net_dev: networkdevice.NetworkDevice):
         ws_obj = self.work_book['Main']
@@ -320,15 +326,11 @@ class GetInventoryProject:
         """
         Cycle through all the gather functions and determine if we need to run the gather function.
         """
-        # need to skip the first Gather function
-        # start_i set to -1 will run all, if set to 0 or above it will start after the value
-        start_i = 0
         sheet_row_start = 5
         for i, gather_f in enumerate(self.gather_f_bools):
-            if i > start_i:
-                value = xls.rw_cell(self.work_book['Settings'], sheet_row_start+i, 2)
-                if value.lower() == 'yes':
-                    self.gather_f_bools[gather_f] = True
+            value = xls.rw_cell(self.work_book['Settings'], sheet_row_start+i, 2)
+            if value.lower() == 'yes':
+                self.gather_f_bools[gather_f] = True
 
     def verbose_msg(self, msg):
         """
@@ -389,9 +391,6 @@ class GetInventoryProject:
         for i, key in enumerate(attribute_list, 1):
             self.__read_xls_var(key, i, 2)
 
-    def save_work_book(self):
-        xls.save_xls_retry_if_open(self.work_book, self.output_file, self.output_path)
-
     def write_device_errors_to_wb(self):
         """
         Write all the Device Errors and Comments to the workbook.
@@ -418,7 +417,7 @@ class GetInventoryProject:
         """
         if self.data_to_json:
             self.output_data_to_json()
-        self.wr_to_file_gather_commands()
+        self.save_gathers_to_txt()
         self.wr_net_dev_to_wb()
         self.write_device_errors_to_wb()
         self.clear_credentials()
@@ -437,3 +436,22 @@ class GetInventoryProject:
         # Open Command for Mac
         elif sys.platform == 'darwin':
             os.system('open "' + str(file_location) + '"')
+
+    def save_gathers_to_txt(self):
+        for net_dev in self.network_devices:
+            self._dev_data_to_txt(net_dev)
+
+    def _dev_data_to_txt(self, net_dev):
+        for gather_fun_name in self.gathers_to_txt_file:
+            if gather_fun_name in net_dev.gather_data.keys():
+                data = net_dev.gather_data[gather_fun_name]
+                f_path = self.output_path.child(gather_fun_name.replace('gather_', ''))
+                f_path.mkdir(parents=True)
+                f_path = f_path.child(net_dev.host+'_'+gather_fun_name+'.txt')
+                if isinstance(data, str):
+                    f_path.write_file(data)
+                elif isinstance(data, dict):
+                    msg = str()
+                    for cmd, output in data.items():
+                        msg = '\n'+hf.center_message(cmd, 60, '-') + '\n' + output
+                    f_path.write_file(msg)
