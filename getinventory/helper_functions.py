@@ -176,3 +176,59 @@ def find_dict_in_list(list_of_dict, match_key, match_value, lazy=False):
                 return line
             elif not lazy and match_value == line[match_key]:
                 return line
+
+def format_uptime(uptime):
+    str_years, str_weeks, str_days, str_hours, str_minutes = 0, 0, 0, 0, 0
+    str_input = uptime.split(",")
+    for i in str_input:
+        i = i.strip()
+        str_split = i.split(" ")
+        if left(str_split[1], 3) == "yea":
+            str_years = int(str_split[0])
+        if left(str_split[1], 3) == "wee":
+            str_weeks = int(str_split[0])
+        if left(str_split[1], 3) == "day":
+            str_days = int(str_split[0])
+        if left(str_split[1], 3) == "hou":
+            str_hours = int(str_split[0])
+        if left(str_split[1], 3) == "min":
+            str_minutes = int(str_split[0])
+
+    if str_days > 365:
+        years = str_days / 365
+        if not years.is_integer():
+            years = int(str(years).split(".")[0])
+        str_days = str_days - years * 365
+        str_years = str_years + years
+    if str_days > 7:
+        weeks = str_days / 7
+        if not weeks.is_integer():
+            weeks = int(str(weeks).split(".")[0])
+        str_days = str_days - weeks * 7
+        str_weeks = str_weeks + weeks
+    if str_weeks > 52:
+        years = str_weeks/52
+        if not years.is_integer():
+            years = years.split(".")
+            years = years[0]
+        str_weeks = str_weeks - years * 52
+        str_years = str_years + years
+
+    return (str(str_years) + "y " +
+            str(str_weeks) + "w " +
+            str(str_days) + "d " +
+            str(str_hours) + "h " +
+            str(str_minutes) + "m "
+            )
+
+
+def left(s, amount):
+    return s[:amount]
+
+
+def right(s, amount):
+    return s[-amount:]
+
+
+def mid(s, offset, amount):
+    return s[offset:offset+amount]
