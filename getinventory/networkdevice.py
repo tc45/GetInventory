@@ -6,7 +6,7 @@ from unipath import Path
 import netcapt
 from . import helper_functions as hf
 from netmiko.ssh_exception import AuthenticationException
-from netcapt.netcapt_exceptions import GatherAttributeError
+from netcapt.netcapt_exceptions import GatherAttributeUnsupported
 from datetime import datetime
 
 from threading import Semaphore
@@ -105,7 +105,7 @@ class NetworkDevice:
                         self.gather_data[gather_fun_name] = data
                     else:
                         self.gather_data[gather_fun_name] = getattr(self.netcapt_handle, gather_fun_name)()
-            except GatherAttributeError as e:
+            except GatherAttributeUnsupported as e:
                 self.add_exception_error(e, 'Unsupported Gather Method', "")
             except Exception as e:
                 self.add_exception_error(e, 'Error: '+gather_fun_name)
