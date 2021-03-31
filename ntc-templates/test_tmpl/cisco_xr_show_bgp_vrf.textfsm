@@ -41,6 +41,7 @@ Start
   # Checking for header
   ^\s*Network\s+Next(?:\s+|-)[Hh]op\s+Metric\s+LocPrf\s+Weight\s+Path\s*$$ -> BGPTable
   ^\s*$$
+  ^% None of the requested address families are configured for instance
   ^. -> Error
 
 BGPTable

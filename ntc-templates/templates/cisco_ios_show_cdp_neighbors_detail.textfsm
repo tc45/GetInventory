@@ -1,29 +1,40 @@
 Value Required DESTINATION_HOST (\S+)
-Value INTERFACE_IP (.*)
-Value MANAGEMENT_IP (.*)
+Value List INTERFACE_IP (\S+)
+Value MANAGEMENT_IP (\S+)
 Value PLATFORM (.*)
 Value REMOTE_PORT (.*)
 Value LOCAL_PORT (.*)
-Value SOFTWARE_VERSION (.*$)
+Value SOFTWARE_VERSION (\S+)
 Value CAPABILITIES (.*)
 
 Start
   ^Device ID: ${DESTINATION_HOST}
-  ^Entry address\(es\)\s*:\s* -> GetInterfaceIP
-  ^Platform\s*:\s*${PLATFORM}\s*,\s*Capabilities\s*:\s*${CAPABILITIES}
+  ^Entry address\(es\)\s*:\s*
+  ^\s+IP address: ${INTERFACE_IP}
+  ^\s+IPv6 address: ${INTERFACE_IP}\s+\(link-local\)
+  ^\s+IPv6 address: ${INTERFACE_IP}
+  ^\s*Platform\s*\:*\s*${PLATFORM}\s*,\s*Capabilities\s*:\s*${CAPABILITIES}\s+$$
+  ^\s*Platform\s*\:*\s*${PLATFORM}\s*,\s*Capabilities\s*:\s*${CAPABILITIES}
   ^Interface: ${LOCAL_PORT},  Port ID \(outgoing port\): ${REMOTE_PORT}
   ^Version : -> GetVersion
   # Capture time-stamp if vty line has command time-stamping turned on
   ^Load\s+for\s+
   ^Time\s+source\s+is
   ^Management address\(es\): -> GetIP
+  ^Holdtime
   ^----------- -> Record
-
-GetInterfaceIP
-  ^.*IP address: ${INTERFACE_IP} -> Start
   
 GetIP
   ^.*IP.+address: ${MANAGEMENT_IP} -> Start
+  ^.* -> Start
 
 GetVersion
-  ^${SOFTWARE_VERSION} -> Start
+  ^.*\s+Product Version:\s+${SOFTWARE_VERSION}\s+ -> Start
+  ^.*\s+Version\s*:*\s*${SOFTWARE_VERSION}(\,)\s+ -> Start
+  ^.*\s+Version\s*:*\s*${SOFTWARE_VERSION} -> Start
+  ^Cisco Inter
+  ^.* -> Error
+
+return_error
+  ^.* -> Error
+

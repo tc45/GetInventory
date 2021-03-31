@@ -97,7 +97,7 @@
         "route_source":"Route Source",
         "network":"Network",
         "next_hop":"Next Hop",
-        "metric":"Next Hop",
+        "metric":"Metric",
         "local_pref":"Local Pref",
         "weight":"Weight",
         "as_path":"AS Path",

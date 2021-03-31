@@ -1,9 +1,11 @@
-Value BRIDGE_GROUP (\w+)
-Value BRIDGE_DOMAIN (\w+)
+Value BRIDGE_GROUP (\S+)
+Value BRIDGE_DOMAIN (\S+)
+Value STATE (\S+)
+Value ID (\S+)
 
 Start
   ^\S+\s+\S+\s+\d+\s+\d+:\d+:\d+\.\d+\s+\S+\s*$$
-  ^Bridge\s+group:\s+${BRIDGE_GROUP},\s+bridge-domain:\s+${BRIDGE_DOMAIN},\s+id: -> Record
+  ^Bridge\s+group:\s+${BRIDGE_GROUP},\s+bridge-domain:\s+${BRIDGE_DOMAIN},\s+id:\s+${ID},\s+state:\s+${STATE} -> Record
   ^/s+Aging:
   ^Legend:
   ^/s+Filter^/s+MAC^/s+addresses:
