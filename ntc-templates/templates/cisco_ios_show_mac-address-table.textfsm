@@ -11,6 +11,10 @@ Start
   # Capture time-stamp if vty line has command time-stamping turned on
   ^Load\s+for\s+
   ^Time\s+source\s+is
+  ^\s*$$
+  ^.*Mac Address Entries
+  ^\s+BD\s+mac addr\s+type\s+ports -> TYPE5
+  ^.* -> Error
 
 TYPE1
   ^${DESTINATION_ADDRESS}\s+${TYPE}\s+${VLAN}\s+${DESTINATION_PORT} -> Record
@@ -44,3 +48,9 @@ TYPE4
   ^\s*$$
   ^Total\s+Mac\s+Addresses
   ^. -> Error
+
+TYPE5
+  ^\s*-----------------------+
+  ^\s+${VLAN}\s+${DESTINATION_ADDRESS}\s+${TYPE}\s+${DESTINATION_PORT} -> Record
+  ^\s*$$
+  ^.* -> Error
