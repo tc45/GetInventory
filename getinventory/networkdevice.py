@@ -16,20 +16,15 @@ class InitiatingConnectionException(Exception):
 class NetworkDevice:
     netcapt_handle: Union[None, CiscoIosDevice, CiscoXrDevice, CiscoNxosDevice, CiscoWlcDevice]
 
-    def __init__(
-            self, gather_f_bools, status,
-            main_row, output_path,
-            output_raw_cli, verbose, other_commands, **kwargs
-    ):
+    def __init__(self, gather_f_bools, status, main_row, output_path, output_raw_cli, **kwargs):
         self.status = status
         self.gather_f_bools = gather_f_bools
         self.main_row = main_row
         self.output_raw_cli = output_raw_cli
         self.output_path = Path(output_path)
         self.elapsed_time = int()
-        self.other_commands = other_commands
 
-        self.verbose = verbose
+        self.verbose = kwargs['verbose']
         self.host = kwargs['host']
         # The autodetect option will be handled by the GetNetworkDevice function
         self.netcapt_handle = netcapt.GetNetworkDevice(**kwargs)
@@ -45,7 +40,8 @@ class NetworkDevice:
         # Stores a list of all the error/Comments
         self.comment_messages = list()
 
-    def add_exception_error(self, e, e_type='Error', set_status='Error | See Comment(s)'):
+
+    def add_exception_error(self, e, e_type='Error'):
         """
         Adds a detected Exception Error to the comment messages as an Error, will handle the data parsing to
         ensure consistency.
@@ -55,7 +51,6 @@ class NetworkDevice:
         :param e: Exception
         :return:
         """
-        self.status = set_status
         exc_tb = sys.exc_info()[2]
         exc_type = sys.exc_info()[0]
         exc_line = exc_tb.tb_lineno
@@ -93,12 +88,8 @@ class NetworkDevice:
         for gather_fun_name, gather_true_false in self.gather_f_bools.items():
             try:
                 if gather_true_false:
-                    self.verbose_msg('Running: ' + gather_fun_name)
-                    if gather_fun_name == 'gather_commands':
-                        data = getattr(self.netcapt_handle, gather_fun_name)(self.other_commands)
-                        self.gather_data[gather_fun_name] = data
-                    else:
-                        self.gather_data[gather_fun_name] = getattr(self.netcapt_handle, gather_fun_name)()
+                    self.gather_data[gather_fun_name] = getattr(self.netcapt_handle, gather_fun_name)()
+
             except Exception as e:
                 self.add_exception_error(e)
 
@@ -129,21 +120,19 @@ class NetworkDevice:
         self.device_info['hostname'] = self.hostname
 
         # Load 'show version info to device_info
-        self.verbose_msg('Running: gather_version')
         data = self.netcapt_handle.gather_version()
         if isinstance(data, list):
             self.device_info.update(data[0])
 
+        # load show process cpu to device_info
+        data = self.netcapt_handle.send_command('show processes cpu', use_textfsm=True)
+        if isinstance(data, list):
+            self.device_info.update(data[0])
+
         # Add the Interface Counts
-        self.verbose_msg('Getting Interface Counts')
         data = self.netcapt_handle.count_intf()
         if isinstance(data, dict):
             self.device_info['interface_count'] = data
-
-        # Get SFP Count
-        self.verbose_msg('Getting SFP Count')
-        data = self.netcapt_handle.get_sfp()
-        self.device_info['sfp_count'] = len(data)
 
     def end_connection(self):
         self.netcapt_handle.end_connection()

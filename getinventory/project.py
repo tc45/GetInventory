@@ -6,7 +6,6 @@ from . import xls
 from . import networkdevice
 from . import threadable_functions as thread_f
 from unipath import Path
-from . xlsx_output_key_map import OUTPUT_KEY_MAP, DEVICE_INFO_MAP, INTERACE_COUNT_MAP
 
 class GetInventoryProject:
     # Start Row of Main column to begin reading Network Devices
@@ -17,11 +16,6 @@ class GetInventoryProject:
         'global_delay_factor': 5,
         'auto_connect': False
     }
-    output_key_map = OUTPUT_KEY_MAP
-    device_info_map = DEVICE_INFO_MAP
-    interface_count_map = INTERACE_COUNT_MAP
-    # list of gather functions to not add to the work book
-    gathers_ignore_to_map_to_xls = ['gather_version', 'gather_commands']
 
     def __init__(self):
         cli_args = hf.cli_args()
@@ -54,18 +48,17 @@ class GetInventoryProject:
 
         # This should be in the same order as the settings page
         self.gather_f_bools = {
-            'gather_version': True,
+            'gather_version': False,
             'gather_arp': False,
             'gather_mac': False,
-            'gather_interfaces': False,
+            'gather_interface': False,
             'gather_cdp': False,
             'gather_lldp': False,
             'gather_route': False,
             'gather_bgp': False,
             'gather_inventory': False,
             'gather_commands': False,
-            'gather_ip_mroute': False,
-            'gather_ap': False
+            'gather_ip_mroute': False
         }
 
         # List of netcapt Network Devices, will only be in list of Status is set to 'Yes'
@@ -74,10 +67,9 @@ class GetInventoryProject:
         # Need to update path to a Path object
         self.output_path = Path(self.output_path)
 
-        # Get the List of Commands
-        self.other_commands = xls.cell_iter_to_list(self.work_book["Commands"]["A"], True)
-
         self.load_the_project()
+        # for key, val in vars(self).items():
+        #     print(key, ':', val)
 
     def load_the_project(self):
         """
@@ -88,6 +80,7 @@ class GetInventoryProject:
         self.update_network_devices()
 
     def build_out_directories(self):
+        print(self.output_path)
         self.output_path.mkdir(parents=True)
         subdirectories = ['raw_cli_logs', 'json_output', 'gather_commands']
         for subdir in subdirectories:
@@ -104,96 +97,6 @@ class GetInventoryProject:
         self.save_everything()
         self.open_xls_file_in_app()
 
-    def wr_net_dev_to_wb(self):
-        for net_dev in self.network_devices:
-            self._net_dev_to_main(net_dev)
-            self._intf_count_to_main(net_dev)
-            self._net_dev_gathers_to_wb(net_dev)
-
-    def _net_dev_gathers_to_wb(self, net_dev: networkdevice.NetworkDevice):
-        for gather_name, data in net_dev.gather_data.items():
-            sheet_name = ' '.join(gather_name.split('_')[1:]).upper()
-            # Only Continue for items we want in the Work Book
-            if gather_name not in self.gathers_ignore_to_map_to_xls:
-                # Only build if we want it in the Work Book
-                self._build_ws_obj(sheet_name, self.output_key_map[gather_name])
-                # Add all the Data
-                self._gather_to_ws(sheet_name, gather_name, data, net_dev.hostname)
-
-    def _gather_to_ws(self, sheet_name, gather_name, data, hostname):
-        """
-        Cycle through all the Gather Data for one gather and output it ot the Works Sheet.
-        """
-        sheet_obj = self.work_book[sheet_name]
-        next_row = xls.next_available_row(sheet_obj)
-        # If string either data not available of Feature is not enabled
-        if isinstance(data, str) or data is None:
-            xls.rw_cell(sheet_obj, next_row, 1, hostname)
-            if data is not None and 'is not enabled' in data:
-                xls.rw_cell(sheet_obj, next_row, 2,  data.replace('\n', ''))
-            else:
-                xls.rw_cell(sheet_obj, next_row, 2, 'No Data')
-            return
-
-        # Need to build simple sheet_map
-        # print(hostname, gather_name, data)
-        sheet_map = self.__build_sheet_map(gather_name, data[0].keys())
-
-        # Cycle through the data
-        for i, data_entry in enumerate(data):
-            xls.rw_cell(sheet_obj, next_row + i, 1, hostname)
-            for key in sheet_map:
-                # print(data_entry)
-                # Input the data only if in sheet_map
-                if key in data_entry.keys():
-                    wr_val = data_entry[key]
-                    # Clean up any Values that are list to comma seperated
-                    if isinstance(wr_val, list):
-                        wr_val = ', '.join(wr_val)
-                    xls.rw_cell(sheet_obj, next_row+i, sheet_map[key], wr_val)
-
-    def __build_sheet_map(self, gather_name, data_keys):
-        """
-        Need to simpolify complex OUTPUT_KEY_MAP to a more {key:column} simplicity,
-        this will extract all values that do match.
-        """
-        sheet_map = dict()
-        for mapper in self.output_key_map[gather_name]:
-            for key in mapper['keys']:
-                if key in data_keys:
-                    sheet_map[key] = mapper['column']
-        return sheet_map
-
-    def _build_ws_obj(self, sheet_name, list_of_dict_w_col_name, first_col_names=['Hostname']):
-        # Build out Work Sheet if it does not exist, will build out with all the Column Names
-        # the Default value for first Column is 'Hostname'
-        if sheet_name not in self.work_book.sheetnames:
-            self.work_book.create_sheet(sheet_name)
-            sheet_obj = self.work_book[sheet_name]
-            for i, col_name in enumerate(first_col_names, 1):
-                xls.rw_cell(sheet_obj, 1, i, col_name)
-            for mapper in list_of_dict_w_col_name:
-                xls.rw_cell(sheet_obj, 1, mapper['column'], mapper['column_name'])
-
-    def _intf_count_to_main(self, net_dev: networkdevice.NetworkDevice):
-        ws_obj = self.work_book['Main']
-        for intf_name, vals in net_dev.device_info['interface_count'].items():
-            if intf_name in self.interface_count_map.keys():
-                for key, col in self.interface_count_map[intf_name].items():
-                    xls.rw_cell(ws_obj, net_dev.main_row, col, vals[key])
-
-    def _net_dev_to_main(self, net_dev: networkdevice.NetworkDevice):
-        ws_obj = self.work_book['Main']
-        # Write the Status of the Device
-        xls.rw_cell(ws_obj, net_dev.main_row, 2, net_dev.status)
-        for mapper in self.device_info_map:
-            for key in mapper['keys']:
-                if key in net_dev.device_info.keys():
-                    wr_val = net_dev.device_info[key]
-                    if isinstance(wr_val, list):
-                        wr_val = ', '.join(wr_val)
-                    xls.rw_cell(ws_obj, net_dev.main_row, mapper['column'], wr_val)
-                    break
 
     def save_work_book(self):
         xls.save_xls_retry_if_open(self.work_book, self.output_file, self.output_path)
@@ -236,7 +139,6 @@ class GetInventoryProject:
                     'gather_f_bools': self.gather_f_bools,
                     'output_path': self.output_path,
                     'output_raw_cli': self.output_raw_cli,
-                    'other_commands': self.other_commands,
                 }
                 # Add in default parameters
                 device_params.update(self.default_device_settings)
@@ -269,15 +171,10 @@ class GetInventoryProject:
         """
         Cycle through all the gather functions and determine if we need to run the gather function.
         """
-        # need to skip the first Gather function
-        # start_i set to -1 will run all, if set to 0 or above it will start after the value
-        start_i = 0
-        sheet_row_start = 5
         for i, gather_f in enumerate(self.gather_f_bools):
-            if i > start_i:
-                value = xls.rw_cell(self.work_book['Settings'], sheet_row_start+i, 2)
-                if value.lower() == 'yes':
-                    self.gather_f_bools[gather_f] = True
+            value = xls.rw_cell(self.work_book['Settings'], 5+i, 2)
+            if value.lower() == 'yes':
+                self.gather_f_bools[gather_f] = True
 
     def verbose_msg(self, msg):
         """
@@ -365,7 +262,7 @@ class GetInventoryProject:
         Rubn through all of the save functions
         :return:
         """
-        self.wr_net_dev_to_wb()
+        # self.write_device_info_to_wb()
         self.write_device_errors_to_wb()
         self.clear_credentials()
         self.save_work_book()

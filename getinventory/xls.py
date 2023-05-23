@@ -29,24 +29,10 @@ def rw_cell(sheet_obj, row, column, value=None):
     Either writes or reads to/from a cell.
     To Erase a cell please use clear_cell
     """
-    if isinstance(column, str):
-        c_index = column.upper() + str(row)
-        cell_obj = sheet_obj[c_index]
-        if value is not None:
-            cell_obj.value = value
-    else:
-        cell_obj = sheet_obj.cell(row=row, column=column, value=value)
-    return cell_obj.value
-
-
-def cell_iter_to_list(cell_iter, ignore_empty_cell=True):
-    t_list = []
-    for cell in cell_iter:
-        if not ignore_empty_cell:
-            t_list.append(cell.value)
-        elif cell.value:
-            t_list.append(cell.value)
-    return t_list
+    if value is not None:
+        sheet_obj.cell(row=row, column=column).value = value
+        return None
+    return sheet_obj.cell(row=row, column=column).value
 
 
 def clear_cell(sheet_obj, row, column):
@@ -74,7 +60,7 @@ def add_xls_tag(file_name):
 def next_available_row(sheet_obj, col='A'):
     """
     Returns the number of the next available Row, it determines
-    avaibaility based on whether there is an entry the column 'col'
+    avaibaility based on whether there is an entry for hostname
     """
     column = sheet_obj[col]
     for index, cell in enumerate(column):

@@ -40,13 +40,6 @@ def cli_args():
                       help='Maximum number of concurrent thread',
                       type='int'
                       )
-    parser.add_option('-j', '--json_output',
-                      dest='max_threads',
-                      action='store',
-                      default=25,
-                      help='Maximum number of concurrent thread',
-                      type='int'
-                      )
 
     # Following values have default values in the GetInventoryProject class
     parser.add_option('-o', '--output_file',
@@ -104,7 +97,7 @@ def print_net_dev_msg(row, net_dev, msg):
     print(line1, "|", line2, "|", msg)
 
 
-def start_multithreading(network_devices, thread_function, max_threads=10, verbose=True, *args):
+def start_multithreading(network_devices, thread_function, max_threads=10, *args):
     """
     Multi Threading function for a list of devices.
     :param network_devices: List of Network Device
@@ -116,8 +109,6 @@ def start_multithreading(network_devices, thread_function, max_threads=10, verbo
     for n, net_dev in enumerate(network_devices):
         thread_list.append(Thread(target=thread_function, args=((net_dev,)+args)))
         if len(thread_list) == max_threads or n == len(network_devices) - 1:
-            if verbose:
-                print('Starting {} Threads out of {}'.format(len(thread_list), len(network_devices)))
             for thread in thread_list:
                 thread.start()
             for thread in thread_list:
