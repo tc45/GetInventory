@@ -36,8 +36,6 @@ class GetInventoryProject:
         cli_args.pop('output_raw_cli')
         self.max_threads = cli_args['max_threads']
         cli_args.pop('max_threads')
-        self.data_to_json = cli_args['data_to_json']
-        cli_args.pop('data_to_json')
 
         # Open up the Work Book
         self.work_book = xls.open_xls(self.input_file)
@@ -159,7 +157,6 @@ class GetInventoryProject:
         output_folder = self.output_path.child('json')
         for net_dev in self.network_devices:
             output_file = output_folder.child(net_dev.hostname+'_'+net_dev.host+'.json')
-            net_dev.verbose_msg("Saving Data to JSON File")
             json_data = json.dumps(net_dev.gather_data, indent=4)
             output_file.write_file(json_data)
 
@@ -376,8 +373,7 @@ class GetInventoryProject:
         Rubn through all of the save functions
         :return:
         """
-        if self.data_to_json:
-            self.output_data_to_json()
+        self.output_data_to_json()
         self.wr_net_dev_to_wb()
         self.write_device_errors_to_wb()
         self.clear_credentials()

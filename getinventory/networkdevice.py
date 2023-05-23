@@ -160,6 +160,7 @@ class NetworkDevice:
         self.netcapt_handle.end_connection()
         self.verbose_msg('Ending CLI connection')
 
+
     def start_raw_cli_log(self):
         raw_cli_f_path = self.output_path.child('raw_cli_logs').child(self.host+'_raw_cli.log')
         hf.add_time_stamp_to_file(raw_cli_f_path)
