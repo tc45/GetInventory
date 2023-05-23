@@ -1,3 +1,2 @@
 netmiko>=3.0.0
 openpyxl>=3.0.3
-git+https://github.com/rubengm13/netcapt@develop
