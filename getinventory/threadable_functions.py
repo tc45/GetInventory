@@ -1,4 +1,4 @@
-from .networkdevice import NetworkDevice, InitiatingConnectionException
+from .networkdevice import NetworkDevice
 
 
 def run_gathers(net_dev: NetworkDevice):
@@ -13,8 +13,6 @@ def run_gathers(net_dev: NetworkDevice):
         net_dev.end_connection()
         net_dev.update_time('end')
         if net_dev.status.lower() == 'yes':
-            net_dev.status = 'Completed'
-    except InitiatingConnectionException as e:
-        net_dev.add_exception_error(e, 'Failed to Connect', 'Failed to Connect')
+            net_dev.status = 'Complete'
     except Exception as e:
         net_dev.add_exception_error(e)

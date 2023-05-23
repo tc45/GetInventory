@@ -137,7 +137,6 @@ class NetworkDevice:
     def update_dev_info(self):
         self.hostname = self.netcapt_handle.hostname
         self.device_info['hostname'] = self.hostname
-        self.device_info['device_type'] = self.netcapt_handle.classname
 
         # Load 'show version info to device_info
         self.verbose_msg('Running: gather_version')

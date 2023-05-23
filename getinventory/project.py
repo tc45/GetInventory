@@ -144,10 +144,7 @@ class GetInventoryProject:
                 # Only build if we want it in the Work Book
                 self._build_ws_obj(sheet_name, self.output_key_map[gather_name])
                 # Add all the Data
-                try:
-                    self._gather_to_ws(sheet_name, gather_name, data, net_dev.hostname)
-                except Exception as e:
-                    net_dev.add_exception_error(e)
+                self._gather_to_ws(sheet_name, gather_name, data, net_dev.hostname)
 
     def _gather_to_ws(self, sheet_name, gather_name, data, hostname):
         """
