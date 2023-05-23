@@ -13,6 +13,7 @@ def del_data_except_col_header(ws_obj, header_cols=1):
 
 def open_xls(xls_file_name):
     """Returns the WorkBook of specified Name"""
+    print(xls_file_name)
     if not xls_file_name.exists():
         print("The following file does not exists:", xls_file_name)
         print("Please ensure the file exists or the correct filename was entered when "

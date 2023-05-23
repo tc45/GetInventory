@@ -108,15 +108,15 @@ class NetworkDevice:
             except GatherAttributeError as e:
                 self.add_exception_error(e, 'Unsupported Gather Method', "")
             except Exception as e:
-                self.add_exception_error(e, 'Error: '+gather_fun_name)
+                self.add_exception_error(e)
 
     def print_msg(self, msg):
         """
         Print Message with main_row value
         """
         line1 = str(self.main_row)
-        if len(line1) < 6:
-            line1 += (6 - len(line1)) * " "
+        if len(line1) < 8:
+            line1 += (8 - len(line1)) * " "
         line1 = " " + line1
         line2 = str(self.host)
         if len(line2) < 15:
@@ -161,10 +161,9 @@ class NetworkDevice:
         self.verbose_msg('Ending CLI connection')
 
     def start_raw_cli_log(self):
-        if self.output_raw_cli:
-            raw_cli_f_path = self.output_path.child('raw_cli_logs').child(self.host+'_raw_cli.log')
-            hf.add_time_stamp_to_file(raw_cli_f_path)
-            self.netcapt_handle.start_raw_cli_log(raw_cli_f_path)
+        raw_cli_f_path = self.output_path.child('raw_cli_logs').child(self.host+'_raw_cli.log')
+        hf.add_time_stamp_to_file(raw_cli_f_path)
+        self.netcapt_handle.start_raw_cli_log(raw_cli_f_path)
 
     def start_connection(self, max_attempts=3):
         """
@@ -192,7 +191,7 @@ class NetworkDevice:
             self.start_time = datetime.now()
             self.verbose_msg('Start Time: {}'.format(self.start_time))
         elif start_end == 'end':
-            self.end_time = datetime.now()
+            self.start_time = datetime.now()
             self.verbose_msg('End Time: {}'.format(self.end_time))
             if self.start_time is not None and self.end_time is not None:
                 self.device_info['elapsed_time'] = str(self.end_time - self.start_time)

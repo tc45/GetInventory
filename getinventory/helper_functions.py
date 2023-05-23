@@ -42,7 +42,7 @@ def cli_args():
                       )
     parser.add_option('-j', '--data_to_json',
                       dest='data_to_json',
-                      action='store_true',
+                      action='store',
                       default=False,
                       help='Maximum number of concurrent threads',
                       )
@@ -155,11 +155,3 @@ def add_time_stamp_to_file(file_path):
     f.write('!'+" "*30+format_datetime("%Y-%m-%d %H:%M:%S")+" "*30)
     f.write("\n!"+"#"*80+"!\n")
     f.close()
-
-
-def center_message(msg, max_len, filler=" "):
-    spacer = int((max_len - len(msg))/2)-1
-    msg = spacer*filler + " " + msg + " " + spacer*filler
-    if max_len-len(msg):
-        msg += filler
-    return msg
