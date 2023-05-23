@@ -1,14 +1,8 @@
 import sys
 import traceback
-from unipath import Path
+
 import netcapt
-from netmiko.ssh_exception import AuthenticationException
 from . import helper_functions as hf
-
-
-class InitiatingConnectionException(Exception):
-    pass
-
 
 class NetworkDevice:
     def __init__(self, gather_bool, status, main_row, **kwargs):
@@ -36,9 +30,7 @@ class NetworkDevice:
         # Adding all
         self.device_info = dict()
 
-        # Stores a list of all the error/Comments
-        self.comment_messages = list()
-        self.output_path = Path()
+        self.comment_mes
 
     def add_exception_error(self, e, e_type='Error'):
         """
@@ -58,10 +50,6 @@ class NetworkDevice:
         t_err_msg = "{} | Exception Type: {} | At Function: {} | Line No: {} | Error Message: {} | FULL MESSAGE:\n{}"
         t_err_msg = t_err_msg.format(self.host, exc_type, f_name, exc_line, e, traceback_str)
         self.add_cmnt_msg(e, e_type, exc_type, t_err_msg)
-        self.verbose_msg(
-            'Exception ERROR: Exception Type: {} | At Function: {} | Error Message: {}'
-            '(See Excel Output for full message)'.format(exc_type, f_name, e)
-        )
 
     def add_cmnt_msg(self, msg, cmnt_type, exception_type=None, debug_msg=str()):
         """
@@ -116,23 +104,5 @@ class NetworkDevice:
 
     def update_dev_info(self):
         pass
-
-    def start_connection(self, max_attempts=3):
-        """
-        Start Connection and handle attempts, This method will allow connection reattempts
-        :param max_attempts: int default is 3
-        """
-        self.verbose_msg('Starting Connection')
-        attempt = 0
-        for attempt in range(max_attempts):
-            try:
-                self.netcapt_handle.start_connection()
-                return
-            except AuthenticationException as e:
-                self.add_exception_error(e, traceback.format_exc())
-            except Exception as e:
-                self.add_exception_error(e, traceback.format_exc())
-            self.verbose_msg('LOGIN FAILURE: Attempt to Establish Connection Failed, Attempt: ' + str(attempt))
-        raise InitiatingConnectionException(
-            'LOGIN FAILURE: Attempt to Establish Connection Failed, Attempt: ' + str(attempt)
-        )
+    def start_connection(self):
+        self.netcapt_handle.start_connect_w_retry()
