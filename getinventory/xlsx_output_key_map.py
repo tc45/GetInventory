@@ -151,7 +151,7 @@ DEVICE_INFO_MAP = [
     {'column': 'K', 'keys': ['hardware', 'pid', 'platform']},
     {'column': 'L', 'keys': ['serial', 'sn']},
     {'column': 'O', 'keys': ['uptime', 'system_up_time']},
-    {'column': 'P', 'keys': ['os', 'version', 'product_version']},
+    {'column': 'P', 'keys': ['os', 'version']},
     {'column': 'Q', 'keys': ['boot_image', 'running_image']},
     {'column': 'AR', 'keys': ['cpu_5_sec']},
     {'column': 'AS', 'keys': ['cpu_1_min']},
