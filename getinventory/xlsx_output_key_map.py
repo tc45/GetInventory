@@ -123,22 +123,6 @@ OUTPUT_KEY_MAP = {
         {'column': 'V', 'column_name': 'Uptime', 'keys': ['uptime']},
         {'column': 'W', 'column_name': 'Join Date Time', 'keys': ['join_date_time']},
         {'column': 'X', 'column_name': 'Join Taken Time', 'keys': ['join_taken_time']},
-    ],
-    'gather_ip_mroute': [
-        {'column': 'B', 'column_name': 'Multicast Source IP', 'keys': ['multicast_source_ip']},
-        {'column': 'C', 'column_name': 'Multicast Group IP', 'keys': ['multicast_group_ip']},
-        {'column': 'D', 'column_name': 'Up Time', 'keys': ['up_time']},
-        {'column': 'E', 'column_name': 'Expiration Time', 'keys': ['expiration_time']},
-        {'column': 'F', 'column_name': 'Rendezvous Point', 'keys': ['rendezvous_point']},
-        {'column': 'G', 'column_name': 'Flags', 'keys': ['flags']},
-        {'column': 'H', 'column_name': 'Incoming Interface', 'keys': ['incoming_interface']},
-        {'column': 'I', 'column_name': 'Reverse Path Neighbouring Ip', 'keys': ['reverse_path_forwarding_neighbour_ip']},
-        {'column': 'J', 'column_name': 'Registering', 'keys': ['registering']},
-        {'column': 'K', 'column_name': 'Outgoing Interface', 'keys': ['outgoing_interface']},
-        {'column': 'L', 'column_name': 'Forward Mode', 'keys': ['forward_mode']},
-        {'column': 'M', 'column_name': 'Outgoing Multicast Uptime', 'keys': ['outgoing_multicast_uptime']},
-        {'column': 'N', 'column_name': 'Outgoing Multicast Expiration Time',
-         'keys': ['outgoing_multicast_expiration_time']},
     ]
 }
 # This will be the output map for the Main page.
@@ -157,7 +141,6 @@ DEVICE_INFO_MAP = [
     {'column': 'AT', 'keys': ['cpu_5_min']},
     {'column': 'AU', 'keys': ['cpu_15_min']},
     {'column': 'AV', 'keys': ['sfp_count']},
-    {'column': 'BA', 'keys': ['elapsed_time']}
 ]
 
 INTERACE_COUNT_MAP = {

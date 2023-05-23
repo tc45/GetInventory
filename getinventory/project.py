@@ -1,7 +1,6 @@
 import os
 import sys
 import netcapt
-import json
 from . import helper_functions as hf
 from . import xls
 from . import networkdevice
@@ -90,7 +89,7 @@ class GetInventoryProject:
 
     def build_out_directories(self):
         self.output_path.mkdir(parents=True)
-        subdirectories = ['raw_cli_logs', 'json', 'gather_commands']
+        subdirectories = ['raw_cli_logs', 'json_output', 'gather_commands']
         for subdir in subdirectories:
             self.output_path.child(subdir).mkdir(parents=True)
 
@@ -152,13 +151,6 @@ class GetInventoryProject:
                     if isinstance(wr_val, list):
                         wr_val = ', '.join(wr_val)
                     xls.rw_cell(sheet_obj, next_row+i, sheet_map[key], wr_val)
-
-    def output_data_to_json(self):
-        output_folder = self.output_path.child('json')
-        for net_dev in self.network_devices:
-            output_file = output_folder.child(net_dev.hostname+'_'+net_dev.host+'.json')
-            json_data = json.dumps(net_dev.gather_data, indent=4)
-            output_file.write_file(json_data)
 
     def __build_sheet_map(self, gather_name, data_keys):
         """
@@ -373,7 +365,6 @@ class GetInventoryProject:
         Rubn through all of the save functions
         :return:
         """
-        self.output_data_to_json()
         self.wr_net_dev_to_wb()
         self.write_device_errors_to_wb()
         self.clear_credentials()
