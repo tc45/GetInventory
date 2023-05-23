@@ -5,7 +5,7 @@ from getpass import getpass
 from threading import Thread
 import json
 from openpyxl.workbook import Workbook
-from datetime import datetime
+import datetime
 
 
 def cli_args():
@@ -136,14 +136,3 @@ def format_datetime(raw_string='%Y-%m-%d %Hh:%Mm:%Ss'):
     :return: Formatted string with current time.
     """
     return datetime.now().strftime(raw_string)
-
-
-def add_time_stamp_to_file(file_path):
-    """
-    Adds a timestamp as an append to a file
-    """
-    f = open(file_path, "a+")
-    f.write("\n!"+"#"*80+"!\n")
-    f.write('!'+" "*30+format_datetime("%Y-%m-%d %H:%M:%S")+" "*30)
-    f.write("\n!"+"#"*80+"!\n")
-    f.close()
