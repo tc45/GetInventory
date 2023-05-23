@@ -11,7 +11,7 @@ OUTPUT_KEY_MAP = {
         {'column': 'B', 'column_name': 'Part ID', 'keys': ['pid']},
         {'column': 'C', 'column_name': 'Device', 'keys': ['name']},
         {'column': 'D', 'column_name': 'Serial', 'keys': ['sn', 'serial']},
-        {'column': 'E', 'width': 40,  'column_name': 'Description', 'keys': ['description']},
+        {'column': 'E', 'column_name': 'Description', 'keys': ['description']},
     ],
     'gather_cdp': [
         {'column': 2, 'column_name': 'Local Port', 'keys': ['local_port']},

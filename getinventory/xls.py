@@ -1,7 +1,6 @@
 import openpyxl
 import sys
 from unipath import Path
-from openpyxl.utils import get_column_letter
 
 VERBOSE = False
 
@@ -83,19 +82,17 @@ def next_available_row(sheet_obj, col='A'):
     return len(column) + 1
 
 
-def save_xls(wb_obj, file_name, out_dir_path=""):
+def save_xls(wb_obj, file_name, out_dir_path=Path("")):
     """Saves the WorkBook to provided Directory and File Name.
     If no filename will save as input file name with _new at end.
     If no out_dir_path, it will save as ISE_downlink_automation_New.xlsx with a random string
     """
-    out_dir_path = Path(out_dir_path)
     file_save_string = out_dir_path.child(file_name)
     print("Saving the file to:", file_save_string)
     wb_obj.save(file_save_string)
 
 
-def save_xls_retry_if_open(wb_obj, file_name, out_dir_path=""):
-    out_dir_path = Path(out_dir_path)
+def save_xls_retry_if_open(wb_obj, file_name, out_dir_path=Path("")):
     file_open = True
     file_name = add_xls_tag(file_name)
     while file_open:
@@ -120,10 +117,8 @@ def add_net_dev_comment_msgs_to_wb(net_dev, wb_obj):
         list_of_list_to_ws(ws_obj, [comment])
 
 
-def list_of_list_to_ws(sheet_obj, list_of_list, fill_down=None):
+def list_of_list_to_ws(sheet_obj, list_of_list, fill_down=[]):
     """Writes a List of Lists into a ws_obj, can take in a fill_down value and it will add the fill down to the begining of each row"""
-    if fill_down is None:
-        fill_down = list()
     row = next_available_row(sheet_obj)
     if isinstance(fill_down, str):
         fill_down = [fill_down]
@@ -140,7 +135,7 @@ def list_of_list_to_ws(sheet_obj, list_of_list, fill_down=None):
                     rw_cell(sheet_obj, row + i, col + j, str(val))
 
 
-def list_of_dict_to_ws(sheet_obj, list_of_dicts, fill_down=None):
+def list_of_dict_to_ws(sheet_obj, list_of_dicts, fill_down=[]):
     """
     Writes a List of Dict into a ws_obj, can take in a fill_down value and it will add the
     fill down to the begining of each row
@@ -148,8 +143,6 @@ def list_of_dict_to_ws(sheet_obj, list_of_dicts, fill_down=None):
     row = next_available_row(sheet_obj)
     if isinstance(fill_down, str):
         fill_down = [fill_down]
-    elif fill_down is None:
-        fill_down = list()
     if isinstance(list_of_dicts, list):
         for i, dict_obj in enumerate(list_of_dicts):
             list_to_write = fill_down+list(dict_obj.values())
@@ -160,9 +153,3 @@ def list_of_dict_to_ws(sheet_obj, list_of_dicts, fill_down=None):
         print(type(list_of_dicts))
         print(isinstance(list_of_dicts, list))
         print(list_of_dicts)
-
-
-def set_width(sheet_obj, width, col):
-    if isinstance(col, int):
-        col = get_column_letter(col)
-    sheet_obj.column_dimensions[col].width = width
