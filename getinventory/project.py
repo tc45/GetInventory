@@ -451,11 +451,6 @@ class GetInventoryProject:
             os.system('open "' + str(file_location) + '"')
 
     def save_gathers_to_txt(self):
-        """
-        Cycle through all the Network Devices and save the gather data to text file for the
-        methods in gathers_to_txt_file
-        """
-
         for net_dev in self.network_devices:
             self._dev_data_to_txt(net_dev)
 
