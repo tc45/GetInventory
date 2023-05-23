@@ -167,12 +167,6 @@ class NetworkDevice:
         data = self.netcapt_handle.get_sfp()
         self.device_info['sfp_count'] = len(data)
 
-        # Reformat Uptime of the device.
-        up_key = ['system_up_time', 'uptime']
-        for key in up_key:
-            if key in self.device_info.keys():
-                self.device_info[key] = hf.format_uptime(self.device_info[key])
-
     def end_connection(self):
         """ Close Connection"""
         self.netcapt_handle.end_connection()
