@@ -71,7 +71,7 @@ class NetworkDevice:
         t_err_msg = t_err_msg.format(self.host, exc_type, f_name, exc_line, e, traceback_str)
         self.add_cmnt_msg(e, e_type, exc_type, t_err_msg)
         self.verbose_msg(
-            'Exception ERROR: Exception Type: {} | Error Message: {}'
+            'Exception ERROR: Exception Type: {} | At Function: {} | Error Message: {}'
             '(See Excel Output for full message)'.format(exc_type, f_name, e)
         )
 
@@ -101,7 +101,7 @@ class NetworkDevice:
                 if gather_true_false:
                     self.verbose_msg('Running: ' + gather_fun_name)
                     if gather_fun_name == 'gather_commands':
-                        data = self.gather_commands(self.other_commands)
+                        data = getattr(self.netcapt_handle, gather_fun_name)(self.other_commands)
                         self.gather_data[gather_fun_name] = data
                     else:
                         self.gather_data[gather_fun_name] = getattr(self.netcapt_handle, gather_fun_name)()
@@ -109,17 +109,6 @@ class NetworkDevice:
                 self.add_exception_error(e, 'Unsupported Gather Method', "")
             except Exception as e:
                 self.add_exception_error(e, 'Error: '+gather_fun_name)
-
-    def gather_commands(self, commands):
-        cmd_output = dict()
-        for cmd in commands:
-            try:
-                output = self.netcapt_handle.gather_commands([cmd])
-                cmd_output.update(output)
-            except Exception as e:
-                self.add_exception_error(e)
-        return cmd_output
-
 
     def print_msg(self, msg):
         """
