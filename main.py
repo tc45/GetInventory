@@ -88,6 +88,8 @@ def main():
 """######## Gather Functions that run based on Settings Tab ########"""
 
 
+# in CiscoNetworkDevice
+# Supported by XR, NXOS, and IOS
 def gather_version(connection, net_dev, count):
     """
     Captures the show version command and saves the textfsm outcome to
@@ -99,6 +101,9 @@ def gather_version(connection, net_dev, count):
     show_proc_cpu(connection, net_dev, count)
 
 
+# in CiscoNetworkDevice
+# NXOS and IOS are ready in Base Cisco Class
+# XR is modified and ready, only modified the Show functions to use the correct template
 def gather_arp(connection, net_dev, count):
     """
     Captures arp information and utilizing the vrf data it parses the
@@ -132,6 +137,7 @@ def gather_arp(connection, net_dev, count):
     net_dev.show_for_xls["gather_arp"] = arp_list
 
 
+# in CiscoNetworkDevice
 def gather_mac(connection, net_dev, count):
     """
     All the parsing of the
@@ -181,7 +187,7 @@ def gather_interface(connection, net_dev, count):
         output2 = net_dev.show_output_json[command2]
     else:
         # all others do not provide the allowed vlans
-        output = "NO DATA"
+        output2 = "NO DATA"
 
     vrf_info = get_vrf_interfaces_dict(net_dev, connection, count)
 
@@ -251,6 +257,8 @@ def gather_interface(connection, net_dev, count):
         net_dev.show_for_xls["gather_interface"] = [output]
 
 
+# in CiscoNetworkDevice
+# Supported by XR, NXOS, and IOS
 def gather_cdp(connection, net_dev, count):
     command = "show cdp neighbor detail"
     output = log_cmd_textfsm(connection, net_dev, command, count)
@@ -274,6 +282,8 @@ def gather_cdp(connection, net_dev, count):
         net_dev.show_for_xls["gather_cdp"] = [output]
 
 
+# in CiscoNetworkDevice
+# Supported by XR, NXOS, and IOS
 def gather_lldp(connection, net_dev, count):
     command = "show lldp neighbor detail"
     txt_tmpl = None
@@ -323,6 +333,8 @@ def gather_route(connection, net_dev, count):
     net_dev.show_for_xls["gather_route"] = route_list
 
 
+# in CiscoNetworkDevice
+# Supported by XR, NXOS, and IOS
 def gather_bgp(connection, net_dev, count):
     command = "show ip bgp"
     if net_dev.parse_method == "cisco_xr":
@@ -349,6 +361,8 @@ def gather_bgp(connection, net_dev, count):
         net_dev.show_for_xls["gather_bgp"] = [output]
 
 
+# in Cisco NetworkDevice
+# Supported by XR, NXOS, and IOS
 def gather_inventory(connection, net_dev, count):
     command = "show inventory"
     txt_tmpl = None
@@ -364,14 +378,8 @@ def gather_inventory(connection, net_dev, count):
         net_dev.show_for_xls["gather_inventory"] = [output]
 
 
-def update_sfp_count(net_dev, inventory_list):
-    sfp_count = 0
-    for item in inventory_list:
-        if "sfp" in item["descr"].lower():
-            sfp_count += 1
-    net_dev.sfp_count = sfp_count
-
-
+# in Network Device Base class
+# Supported by XR, NXOS, and IOS
 def gather_commands(connection, net_dev, other_shows, count=0):
     """
     Logs the other show commands requested by the user, in "Commands" sheet
@@ -381,6 +389,16 @@ def gather_commands(connection, net_dev, other_shows, count=0):
             print_net_dev_msg(net_dev, "Capturing '{}' as raw text".format(command))
         output = connection.send_command(command, delay_factor=5)
         net_dev.user_rqstd_show[command] = output
+
+
+####### OTher Fucntions #####
+# in NetworkDevice
+def update_sfp_count(net_dev, inventory_list):
+    sfp_count = 0
+    for item in inventory_list:
+        if "sfp" in item["descr"].lower():
+            sfp_count += 1
+    net_dev.sfp_count = sfp_count
 
 
 def read_settings_sheet(ws_obj, start_row=5, end_row=15):
