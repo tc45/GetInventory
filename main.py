@@ -35,7 +35,7 @@ START_TIME = datetime.now()
 
 def main():
     """
-    Main Functino to run everything.
+    Main function to run everything.
     """
     global GLBL_KEY_MAP
     global INPUT_FILE_NAME
@@ -47,7 +47,7 @@ def main():
     if cli_arg["input_file"]:
         INPUT_FILE_NAME = cli_arg["input_file"]
     VERBOSE = cli_arg["verbose"]
-    ###Print Starting
+    # Print Starting
     spacer = "\n\n" + gen_spacer("#", 1)
     print(spacer + "\t\tStarting GetInventory Script" + spacer)
     # Get all global variables
@@ -68,7 +68,7 @@ def main():
     if VERBOSE:
         print("Excel Row | Host            | Message")
         print(60 * "-")
-    ###Connects to net_devices
+    # Connects to net_devices
     """If you need to add more functions or to run more commands add them to the function below"""
     if TESTING:
         testing_connection(network_devices, work_book, GLBL_KEY_MAP)
@@ -308,7 +308,7 @@ def gather_route(connection, net_dev, count):
         vrf_string = ""
         if vrf != "global":
             vrf_string = " vrf " + vrf
-        command = "show route" + vrf_string
+        command = "show ip route" + vrf_string
         output = log_cmd_textfsm(connection, net_dev, command, count)
         if isinstance(output, list):
             for route in output:
