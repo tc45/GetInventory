@@ -166,32 +166,20 @@ class GetInventoryProject:
                 xls.rw_cell(sheet_obj, next_row, 2, 'No Data')
             return
 
+        # Need to build simple sheet_map
+        sheet_map = self.__build_sheet_map(gather_name, data[0].keys())
+
         # Cycle through the data
         for i, data_entry in enumerate(data):
-            # Need to build simple sheet_map for each entry
-            sheet_map = self.__build_sheet_map(gather_name, data_entry.keys())
             xls.rw_cell(sheet_obj, next_row + i, 1, hostname)
             for key in sheet_map:
                 # Input the data only if in sheet_map
                 if key in data_entry.keys():
                     wr_val = data_entry[key]
-                    # Clean up any Values that are lists to comma separated
+                    # Clean up any Values that are list to comma seperated
                     if isinstance(wr_val, list):
                         wr_val = ', '.join(wr_val)
                     xls.rw_cell(sheet_obj, next_row+i, sheet_map[key], wr_val)
-
-        # Abandoning this version 2.
-        # sheet_map = self.output_key_map[gather_name]
-        # for i, data_entry in enumerate(data):
-        #     for key in data_entry.keys():
-        #         wr_val = data_entry[key]
-        #         # Clean up any Values that are lists to comma separated
-        #         if isinstance(wr_val, list):
-        #             wr_val = ', '.join(wr_val)
-        #         line_mapper = hf.find_dict_in_list(sheet_map, 'keys', key, lazy=True)
-        #         xls.rw_cell(sheet_obj, next_row + i, line_mapper['column'], wr_val)
-        #         print(line_mapper)
-
 
     def output_data_to_json(self):
         output_folder = self.output_path.child('json')
@@ -208,7 +196,7 @@ class GetInventoryProject:
 
     def __build_sheet_map(self, gather_name, data_keys):
         """
-        Need to simplify complex OUTPUT_KEY_MAP to a more {key:column} simplicity,
+        Need to simpolify complex OUTPUT_KEY_MAP to a more {key:column} simplicity,
         this will extract all values that do match.
         """
         sheet_map = dict()

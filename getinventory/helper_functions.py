@@ -163,16 +163,3 @@ def center_message(msg, max_len, filler=" "):
     if max_len-len(msg):
         msg += filler
     return msg
-
-def find_dict_in_list(list_of_dict, match_key, match_value, lazy=False):
-    """
-    Lazy finder, will only look if it is inside, so we can look in a list.
-    if we look in a string it will be a lazy finder
-    """
-
-    for line in list_of_dict:
-        if match_key in line.keys():
-            if lazy and match_value in line[match_key]:
-                return line
-            elif not lazy and match_value == line[match_key]:
-                return line
